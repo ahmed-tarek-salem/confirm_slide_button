@@ -53,6 +53,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
     final double maxThumbPosition =
         buttonWidth - thumbSize - greenFillThumbSpacing;
 
+    final double progress = (_dragPosition / maxThumbPosition).clamp(0.0, 1.0);
+
     return Container(
       height: trackHeight,
       margin:
@@ -78,11 +80,28 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
 
           // === Layer 3: Center text (shimmer animation to draw user attention) ===
           Center(
-            child: Shimmer.fromColors(
-              baseColor: const Color(0xff8f8c91),
-              highlightColor: const Color(0xffd6d3d8),
-              period: const Duration(seconds: 2),
-              child: const Text("Slide to Confirm"),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Text inside the new green background (fade in)
+                Opacity(
+                  opacity: progress,
+                  child: const Text(
+                    "Confirms the Process",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                // Original text inside the base gray background (fade out)
+                Opacity(
+                  opacity: 1 - progress,
+                  child: Shimmer.fromColors(
+                    baseColor: const Color(0xff8f8c91),
+                    highlightColor: const Color(0xffd6d3d8),
+                    period: const Duration(seconds: 2),
+                    child: const Text("Slide to Confirm"),
+                  ),
+                ),
+              ],
             ),
           ),
 
