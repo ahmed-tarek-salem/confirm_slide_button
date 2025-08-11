@@ -1,0 +1,20 @@
+name: confirm_slide_button
+description: "A customizable slide-to-confirm button with animations for Flutter."
+version: 0.0.1
+homepage: https://github.com/ahmed-tarek-salem/confirm_slide_button
+repository: https://github.com/ahmed-tarek-salem/confirm_slide_button
+issue_tracker: https://github.com/ahmed-tarek-salem/confirm_slide_button/issues
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  animated_text_kit: ^4.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
