@@ -1,37 +1,91 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
-class ConfirmSlideButton extends StatelessWidget {
+class ConfirmSlideButton extends StatefulWidget {
   final VoidCallback onConfirmed;
 
   const ConfirmSlideButton({super.key, required this.onConfirmed});
 
   @override
+  State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
+}
+
+class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
+  double _dragPosition = 0.0;
+  bool _confirmed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onConfirmed, // temporary for testing
-      child: Container(
-        height: 50,
-        margin: const EdgeInsets.symmetric(horizontal: 30),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: const Color(0xff2f2c32),
-          borderRadius: BorderRadius.circular(50),
-        ),
-        child: Center(
-          child: Shimmer.fromColors(
-            baseColor: const Color(0xff6c696b),
-            highlightColor: const Color(0xffb1aeb3),
-            period: const Duration(seconds: 2),
-            child: const Text(
-              "Slide to Confirm",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+    final double buttonWidth = MediaQuery.of(context).size.width - 40;
+    final double trackHeight = 60; // bigger than the thumb
+    final double thumbSize = 46; // smaller circle
+
+    return Container(
+      height: trackHeight,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: Stack(
+        children: [
+          // Background track
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xff2f2c32),
+              borderRadius: BorderRadius.circular(trackHeight / 2),
+            ),
+          ),
+
+          // Green fill
+          ClipRRect(
+            borderRadius: BorderRadius.circular(trackHeight / 2),
+            child: Container(
+              width: _dragPosition + thumbSize + 12,
+              color: Colors.green,
+            ),
+          ),
+
+          // Center text
+          Center(
+            child: Text(
+              _confirmed ? "Confirmed!" : "Slide to Confirm",
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+
+          // Draggable thumb
+          Positioned(
+            left: _dragPosition + 6,
+            top: (trackHeight - thumbSize) / 2, // vertically centered
+            child: GestureDetector(
+              onHorizontalDragUpdate: (details) {
+                setState(() {
+                  _dragPosition += details.delta.dx;
+                  _dragPosition = _dragPosition.clamp(
+                    0.0,
+                    buttonWidth - thumbSize,
+                  );
+                });
+              },
+              onHorizontalDragEnd: (_) {
+                if (_dragPosition > buttonWidth - thumbSize - 5) {
+                  setState(() {
+                    _confirmed = true;
+                    widget.onConfirmed();
+                  });
+                } else {
+                  setState(() {
+                    _dragPosition = 0.0;
+                  });
+                }
+              },
+              child: Container(
+                width: thumbSize,
+                height: thumbSize,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
