@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
         top: false,
         child: Scaffold(
           appBar: AppBar(title: const Text('Slide to Confirm Demo')),
-          backgroundColor: Colors.black,
+          backgroundColor: Colors.white,
           body: Center(child: Text("Example!")),
           bottomNavigationBar: Column(
             mainAxisSize: MainAxisSize.min,

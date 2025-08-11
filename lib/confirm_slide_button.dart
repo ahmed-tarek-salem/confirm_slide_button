@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 
+/// A custom slide-to-confirm button widget.
+///
+/// The user slides a thumb from left to right to confirm an action.
+/// While sliding, the track fills with green behind the thumb.
+/// When the thumb reaches the end, [onConfirmed] is triggered.
 class ConfirmSlideButton extends StatefulWidget {
+  /// Callback executed when the slide is completed.
   final VoidCallback onConfirmed;
 
   const ConfirmSlideButton({super.key, required this.onConfirmed});
@@ -10,21 +17,49 @@ class ConfirmSlideButton extends StatefulWidget {
 }
 
 class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
+  /// Current horizontal position of the draggable thumb (0 = start).
   double _dragPosition = 0.0;
+
+  /// Whether the user has completed the slide action.
   bool _confirmed = false;
+
+  // === CONFIGURATION CONSTANTS ===
+
+  /// Total height of the track (background area).
+  static const double trackHeight = 60;
+
+  /// Size (diameter) of the draggable thumb circle.
+  static const double thumbSize = 50;
+
+  /// Horizontal padding between the draggable thumb and the green fill.
+  /// Creates visual separation so the thumb appears distinct from the filled area.
+  static const double greenFillThumbSpacing = 12;
+
+  /// Leading offset to horizontally center the thumb relative to the green fill.
+  /// Typically set to half of [greenFillThumbSpacing] for perfect visual balance.
+  static const double thumbLeadingOffset = 6;
+
+  /// Total horizontal margin applied to the entire button.
+  /// Split evenly between left and right sides.
+  static const double buttonHorizontalMargin = 40;
 
   @override
   Widget build(BuildContext context) {
-    final double buttonWidth = MediaQuery.of(context).size.width - 40;
-    final double trackHeight = 60; // bigger than the thumb
-    final double thumbSize = 46; // smaller circle
+    // Total available width for sliding, excluding side margins.
+    final double buttonWidth =
+        MediaQuery.of(context).size.width - buttonHorizontalMargin;
+
+    // Maximum position the thumb can slide to without overshooting the track.
+    final double maxThumbPosition =
+        buttonWidth - thumbSize - greenFillThumbSpacing;
 
     return Container(
       height: trackHeight,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin:
+          const EdgeInsets.symmetric(horizontal: buttonHorizontalMargin / 2),
       child: Stack(
         children: [
-          // Background track
+          // === Layer 1: Background track (static gray bar behind everything) ===
           Container(
             decoration: BoxDecoration(
               color: const Color(0xff2f2c32),
@@ -32,39 +67,40 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
             ),
           ),
 
-          // Green fill
+          // === Layer 2: Green fill (dynamic progress area that grows as the thumb moves) ===
           ClipRRect(
             borderRadius: BorderRadius.circular(trackHeight / 2),
             child: Container(
-              width: _dragPosition + thumbSize + 12,
-              color: Colors.green,
+              width: _dragPosition + thumbSize + greenFillThumbSpacing,
+              color: const Color(0xff6fe69d),
             ),
           ),
 
-          // Center text
+          // === Layer 3: Center text (shimmer animation to draw user attention) ===
           Center(
-            child: Text(
-              _confirmed ? "Confirmed!" : "Slide to Confirm",
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+            child: Shimmer.fromColors(
+              baseColor: const Color(0xff8f8c91),
+              highlightColor: const Color(0xffd6d3d8),
+              period: const Duration(seconds: 2),
+              child: const Text("Slide to Confirm"),
             ),
           ),
 
-          // Draggable thumb
+          // === Layer 4: Draggable thumb (user interaction handle) ===
           Positioned(
-            left: _dragPosition + 6,
-            top: (trackHeight - thumbSize) / 2, // vertically centered
+            left: _dragPosition + thumbLeadingOffset,
+            top: (trackHeight - thumbSize) / 2, // Center vertically
             child: GestureDetector(
+              // Handle thumb movement while dragging
               onHorizontalDragUpdate: (details) {
                 setState(() {
                   _dragPosition += details.delta.dx;
-                  _dragPosition = _dragPosition.clamp(
-                    0.0,
-                    buttonWidth - thumbSize,
-                  );
+                  _dragPosition = _dragPosition.clamp(0.0, maxThumbPosition);
                 });
               },
+              // Handle drag end to check if confirmation is reached
               onHorizontalDragEnd: (_) {
-                if (_dragPosition > buttonWidth - thumbSize - 5) {
+                if (_dragPosition >= maxThumbPosition) {
                   setState(() {
                     _confirmed = true;
                     widget.onConfirmed();
@@ -80,7 +116,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                 height: thumbSize,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black,
+                  color: Color(0xff0b070a),
                 ),
               ),
             ),
