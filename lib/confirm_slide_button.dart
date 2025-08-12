@@ -144,10 +144,20 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                 // Original text inside the base gray background (fade out)
                 Opacity(
                   opacity: 1 - progress,
-                  child: Shimmer.fromColors(
-                    baseColor: const Color(0xff8f8c91),
-                    highlightColor: Colors.white,
-                    period: const Duration(seconds: 2),
+                  child: Shimmer(
+                    period: const Duration(seconds: 3),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xff8f8c91),
+                        Colors.white,
+                        const Color(0xff8f8c91),
+                      ],
+                      stops: const [
+                        0.45, // start of highlight
+                        0.50, // end of highlight → smaller gap = thinner highlight
+                        0.55,
+                      ],
+                    ),
                     child: const Text("Slide to Confirm"),
                   ),
                 ),
