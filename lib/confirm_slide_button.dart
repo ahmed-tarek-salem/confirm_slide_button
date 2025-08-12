@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -43,6 +45,9 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
   /// Split evenly between left and right sides.
   static const double buttonHorizontalMargin = 40;
 
+  /// Maximum blur intensity applied when the thumb is in the middle.
+  static const double maxBlurSigma = 4.0;
+
   @override
   Widget build(BuildContext context) {
     // Total available width for sliding, excluding side margins.
@@ -54,6 +59,11 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
         buttonWidth - thumbSize - greenFillThumbSpacing;
 
     final double progress = (_dragPosition / maxThumbPosition).clamp(0.0, 1.0);
+
+    // Calculate blur that peaks at 50% progress and is 0 at the start/end.
+    // The formula 4 * (x - x^2) creates a parabolic curve that is 0 at x=0 and x=1, and 1 at x=0.5.
+    final double blurValue =
+        maxBlurSigma * (4 * (progress - (progress * progress)));
 
     return Container(
       height: trackHeight,
@@ -136,6 +146,29 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xff0b070a),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                          sigmaX: blurValue, sigmaY: blurValue),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: progress < 0.5
+                            ? const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white,
+                                size: 20,
+                                key: ValueKey('arrow'),
+                              )
+                            : Icon(Icons.check_rounded,
+                                key: ValueKey('check'),
+                                color: Colors.white,
+                                size: 24),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
