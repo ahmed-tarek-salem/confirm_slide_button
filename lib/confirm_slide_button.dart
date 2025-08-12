@@ -48,6 +48,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
   /// Maximum blur intensity applied when the thumb is in the middle.
   static const double maxBlurSigma = 4.0;
 
+  static const double confirmedButtonHeight = trackHeight * 0.8;
+
   @override
   Widget build(BuildContext context) {
     // Total available width for sliding, excluding side margins.
@@ -66,27 +68,65 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
         maxBlurSigma * (4 * (progress - (progress * progress)));
 
     return Container(
+      key: ValueKey('not-confirmed'),
       height: trackHeight,
       margin:
           const EdgeInsets.symmetric(horizontal: buttonHorizontalMargin / 2),
       child: Stack(
         children: [
           // === Layer 1: Background track (static gray bar behind everything) ===
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xff2f2c32),
-              borderRadius: BorderRadius.circular(trackHeight / 2),
+          Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300), // Animate size only
+              height: _confirmed ? confirmedButtonHeight : trackHeight,
+              width: _confirmed ? buttonWidth * .7 : buttonWidth,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _confirmed
+                      ? const Color(0xff6fe69d)
+                      : const Color(0xff2f2c32),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Opacity(
+                  opacity: !_confirmed ? 0.0 : 1.0, // Fade out when confirmed
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: AnimatedContainer(
+                        margin: EdgeInsets.symmetric(
+                            horizontal: _confirmed ? 10 : 0),
+                        duration: const Duration(milliseconds: 300),
+                        width: _confirmed ? thumbSize * .5 : thumbSize,
+                        height: _confirmed ? thumbSize * .5 : thumbSize,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xff0b070a),
+                        ),
+                        child: Center(
+                            child: AnimatedScale(
+                          duration: Duration(milliseconds: 300),
+                          scale: _confirmed ? 0.67 : 1.0,
+                          child: Icon(
+                            Icons.check_rounded,
+                            key: ValueKey('check'),
+                            color: Colors.white,
+                            size: 24, // Keep base size constant
+                          ),
+                        ))),
+                  ),
+                ),
+              ),
             ),
           ),
 
           // === Layer 2: Green fill (dynamic progress area that grows as the thumb moves) ===
-          ClipRRect(
-            borderRadius: BorderRadius.circular(trackHeight / 2),
-            child: Container(
-              width: _dragPosition + thumbSize + greenFillThumbSpacing,
-              color: const Color(0xff6fe69d),
+          if (!_confirmed)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: Container(
+                width: _dragPosition + thumbSize + greenFillThumbSpacing,
+                color: const Color(0xff6fe69d),
+              ),
             ),
-          ),
 
           // === Layer 3: Center text (shimmer animation to draw user attention) ===
           Center(
@@ -106,7 +146,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                   opacity: 1 - progress,
                   child: Shimmer.fromColors(
                     baseColor: const Color(0xff8f8c91),
-                    highlightColor: const Color(0xffd6d3d8),
+                    highlightColor: Colors.white,
                     period: const Duration(seconds: 2),
                     child: const Text("Slide to Confirm"),
                   ),
@@ -116,63 +156,60 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
           ),
 
           // === Layer 4: Draggable thumb (user interaction handle) ===
-          Positioned(
-            left: _dragPosition + thumbLeadingOffset,
-            top: (trackHeight - thumbSize) / 2, // Center vertically
-            child: GestureDetector(
-              // Handle thumb movement while dragging
-              onHorizontalDragUpdate: (details) {
-                setState(() {
-                  _dragPosition += details.delta.dx;
-                  _dragPosition = _dragPosition.clamp(0.0, maxThumbPosition);
-                });
-              },
-              // Handle drag end to check if confirmation is reached
-              onHorizontalDragEnd: (_) {
-                if (_dragPosition >= maxThumbPosition) {
+
+          if (!_confirmed)
+            Positioned(
+              left: _dragPosition + thumbLeadingOffset,
+              top: (trackHeight - thumbSize) / 2, // Center vertically
+              child: GestureDetector(
+                // Handle thumb movement while dragging
+                onHorizontalDragUpdate: (details) {
                   setState(() {
-                    _confirmed = true;
-                    widget.onConfirmed();
+                    _dragPosition += details.delta.dx;
+                    _dragPosition = _dragPosition.clamp(0.0, maxThumbPosition);
                   });
-                } else {
-                  setState(() {
-                    _dragPosition = 0.0;
-                  });
-                }
-              },
-              child: Container(
-                width: thumbSize,
-                height: thumbSize,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xff0b070a),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    ImageFiltered(
-                      imageFilter: ImageFilter.blur(
-                          sigmaX: blurValue, sigmaY: blurValue),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: progress < 0.5
-                            ? const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                                size: 20,
-                                key: ValueKey('arrow'),
-                              )
-                            : Icon(Icons.check_rounded,
-                                key: ValueKey('check'),
-                                color: Colors.white,
-                                size: 24),
-                      ),
+                },
+                // Handle drag end to check if confirmation is reached
+                onHorizontalDragEnd: (_) {
+                  if (_dragPosition >= maxThumbPosition) {
+                    setState(() {
+                      _confirmed = true;
+                      widget.onConfirmed();
+                    });
+                  } else {
+                    setState(() {
+                      _dragPosition = 0.0;
+                    });
+                  }
+                },
+                child: Container(
+                  width: thumbSize,
+                  height: thumbSize,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xff0b070a),
+                  ),
+                  child: ImageFiltered(
+                    imageFilter:
+                        ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: progress < 0.5
+                          ? const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Colors.white,
+                              size: 20,
+                              key: ValueKey('arrow'),
+                            )
+                          : Icon(Icons.check_rounded,
+                              key: ValueKey('check'),
+                              color: Colors.white,
+                              size: 24),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
