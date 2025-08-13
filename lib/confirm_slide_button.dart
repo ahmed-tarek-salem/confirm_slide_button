@@ -24,6 +24,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
 
   /// Whether the user has completed the slide action.
   bool _confirmed = false;
+  bool _startTextAnimation = false;
 
   // === CONFIGURATION CONSTANTS ===
 
@@ -77,7 +78,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
           // === Layer 1: Background track (static gray bar behind everything) ===
           Center(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300), // Animate size only
+              duration: const Duration(milliseconds: 600), // Animate size only
               height: _confirmed ? confirmedButtonHeight : trackHeight,
               width: _confirmed ? buttonWidth * .7 : buttonWidth,
               child: Container(
@@ -94,7 +95,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                     child: AnimatedContainer(
                         margin: EdgeInsets.symmetric(
                             horizontal: _confirmed ? 10 : 0),
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 600),
                         width: _confirmed ? thumbSize * .5 : thumbSize,
                         height: _confirmed ? thumbSize * .5 : thumbSize,
                         decoration: const BoxDecoration(
@@ -103,7 +104,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                         ),
                         child: Center(
                             child: AnimatedScale(
-                          duration: Duration(milliseconds: 300),
+                          duration: Duration(milliseconds: 600),
                           scale: _confirmed ? 0.67 : 1.0,
                           child: Icon(
                             Icons.check_rounded,
@@ -136,9 +137,13 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                 // Text inside the new green background (fade in)
                 Opacity(
                   opacity: progress,
-                  child: const Text(
-                    "Confirms the Process",
-                    style: TextStyle(color: Colors.black),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    child:
+                        _startTextAnimation // Change text when nearly complete
+                            ? Text("Success!", key: ValueKey("success"))
+                            : Text("Confirm the Process",
+                                key: ValueKey("confirm")),
                   ),
                 ),
                 // Original text inside the base gray background (fade out)
@@ -185,6 +190,11 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                     setState(() {
                       _confirmed = true;
                       widget.onConfirmed();
+                    });
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      setState(() {
+                        _startTextAnimation = true;
+                      });
                     });
                   } else {
                     setState(() {
