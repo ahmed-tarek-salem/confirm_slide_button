@@ -68,6 +68,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
     final double blurValue =
         maxBlurSigma * (4 * (progress - (progress * progress)));
 
+    final double greenWidth = _dragPosition + thumbLeadingOffset;
+
     return Container(
       key: ValueKey('not-confirmed'),
       height: trackHeight,
@@ -84,7 +86,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
               child: Container(
                 decoration: BoxDecoration(
                   color: _confirmed
-                      ? const Color(0xff6fe69d)
+                      ? const Color(0xff4ddf69)
                       : const Color(0xff2f2c32),
                   borderRadius: BorderRadius.circular(50),
                 ),
@@ -125,47 +127,69 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
               borderRadius: BorderRadius.circular(50),
               child: Container(
                 width: _dragPosition + thumbSize + greenFillThumbSpacing,
-                color: const Color(0xff6fe69d),
+                color: const Color(0xff4ddf69),
               ),
             ),
 
           // === Layer 3: Center text (shimmer animation to draw user attention) ===
-          Center(
+          SizedBox(
+            width: buttonWidth,
+            height: trackHeight,
             child: Stack(
-              alignment: Alignment.center,
+              fit: StackFit.expand,
               children: [
-                // Text inside the new green background (fade in)
-                Opacity(
-                  opacity: progress,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: _startTextAnimation
-                        ? Text(
-                            "Success!",
-                            key: ValueKey("success"),
-                            style: TextStyle(fontSize: 14),
-                          )
-                        : Text("Confirm the Process", key: ValueKey("confirm")),
+                // Gray shimmer text (right side only)
+                ClipRect(
+                  clipper: _HorizontalClipper(
+                    left: _dragPosition + thumbSize + greenFillThumbSpacing,
+                    right: buttonWidth,
+                  ),
+                  child: Center(
+                    child: Shimmer(
+                      period: const Duration(seconds: 3),
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xff8f8c91),
+                          Colors.white,
+                          Color(0xff8f8c91),
+                        ],
+                        stops: [
+                          0.45,
+                          0.50,
+                          0.55,
+                        ],
+                      ),
+                      child: const Text(
+                        "Slide to Confirm",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
                   ),
                 ),
-                // Original text inside the base gray background (fade out)
-                Opacity(
-                  opacity: 1 - progress,
-                  child: Shimmer(
-                    period: const Duration(seconds: 3),
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xff8f8c91),
-                        Colors.white,
-                        const Color(0xff8f8c91),
-                      ],
-                      stops: const [
-                        0.45, // start of highlight
-                        0.50, // end of highlight → smaller gap = thinner highlight
-                        0.55,
-                      ],
+
+                // Green text (left side only)
+                ClipRect(
+                  clipper: _HorizontalClipper(
+                    left: 0,
+                    right: greenWidth,
+                  ),
+                  child: Center(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: _startTextAnimation
+                          ? const Text(
+                              "Success!",
+                              key: ValueKey("success"),
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.white),
+                            )
+                          : const Text(
+                              "Confirm the Process",
+                              key: ValueKey("confirm"),
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.white),
+                            ),
                     ),
-                    child: const Text("Slide to Confirm"),
                   ),
                 ),
               ],
@@ -235,5 +259,24 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
         ],
       ),
     );
+  }
+}
+
+class _HorizontalClipper extends CustomClipper<Rect> {
+  final double left;
+  final double right;
+
+  const _HorizontalClipper({required this.left, required this.right});
+
+  @override
+  Rect getClip(Size size) {
+    final l = left.clamp(0.0, size.width);
+    final r = right.clamp(0.0, size.width);
+    return Rect.fromLTRB(l, 0, r, size.height);
+  }
+
+  @override
+  bool shouldReclip(covariant _HorizontalClipper oldClipper) {
+    return left != oldClipper.left || right != oldClipper.right;
   }
 }
