@@ -80,7 +80,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 600), // Animate size only
               height: _confirmed ? confirmedButtonHeight : trackHeight,
-              width: _confirmed ? buttonWidth * .7 : buttonWidth,
+              width: _confirmed ? buttonWidth * .6 : buttonWidth,
               child: Container(
                 decoration: BoxDecoration(
                   color: _confirmed
@@ -139,11 +139,13 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                   opacity: progress,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 500),
-                    child:
-                        _startTextAnimation // Change text when nearly complete
-                            ? Text("Success!", key: ValueKey("success"))
-                            : Text("Confirm the Process",
-                                key: ValueKey("confirm")),
+                    child: _startTextAnimation
+                        ? Text(
+                            "Success!",
+                            key: ValueKey("success"),
+                            style: TextStyle(fontSize: 14),
+                          )
+                        : Text("Confirm the Process", key: ValueKey("confirm")),
                   ),
                 ),
                 // Original text inside the base gray background (fade out)
