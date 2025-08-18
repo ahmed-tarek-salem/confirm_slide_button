@@ -18,13 +18,18 @@ class ConfirmSlideButton extends StatefulWidget {
   State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
 }
 
-class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
+class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
+    with SingleTickerProviderStateMixin {
   /// Current horizontal position of the draggable thumb (0 = start).
   double _dragPosition = 0.0;
 
   /// Whether the user has completed the slide action.
   bool _confirmed = false;
   bool _startTextAnimation = false;
+
+  /// Animation controller for the thumb return animation
+  late AnimationController _returnAnimationController;
+  late Animation<double> _returnAnimation;
 
   // === CONFIGURATION CONSTANTS ===
 
@@ -50,6 +55,50 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
   static const double maxBlurSigma = 4.0;
 
   static const double confirmedButtonHeight = trackHeight * 0.8;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _returnAnimationController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+
+    _returnAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _returnAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _returnAnimation.addListener(() {
+      setState(() {
+        _dragPosition = _returnAnimation.value;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _returnAnimationController.dispose();
+    super.dispose();
+  }
+
+  /// Animates the thumb back to the start position
+  void _animateThumbReturn() {
+    _returnAnimation = Tween<double>(
+      begin: _dragPosition,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _returnAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _returnAnimationController.reset();
+    _returnAnimationController.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,13 +254,19 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
               child: GestureDetector(
                 // Handle thumb movement while dragging
                 onHorizontalDragUpdate: (details) {
+                  // Stop any ongoing return animation when user starts dragging
+                  if (_returnAnimationController.isAnimating) {
+                    _returnAnimationController.stop();
+                  }
+
                   setState(() {
                     _dragPosition += details.delta.dx;
                     _dragPosition = _dragPosition.clamp(0.0, maxThumbPosition);
                   });
                 },
-                // Handle drag end to check if confirmation is reached
+
                 onHorizontalDragEnd: (_) {
+                  // If the thumb has reached the end, trigger the confirmation callback
                   if (_dragPosition >= maxThumbPosition) {
                     setState(() {
                       _confirmed = true;
@@ -222,10 +277,10 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton> {
                         _startTextAnimation = true;
                       });
                     });
-                  } else {
-                    setState(() {
-                      _dragPosition = 0.0;
-                    });
+                  }
+                  // Otherwise, animate the thumb back to start position
+                  else {
+                    _animateThumbReturn();
                   }
                 },
                 child: Container(
