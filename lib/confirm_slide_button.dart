@@ -41,11 +41,11 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
 
   /// Horizontal padding between the draggable thumb and the green fill.
   /// Creates visual separation so the thumb appears distinct from the filled area.
-  static const double greenFillThumbSpacing = 12;
+  static const double greenFillThumbSpacing = 8;
 
   /// Leading offset to horizontally center the thumb relative to the green fill.
   /// Typically set to half of [greenFillThumbSpacing] for perfect visual balance.
-  static const double thumbLeadingOffset = 6;
+  static const double thumbLeadingOffset = 4;
 
   /// Total horizontal margin applied to the entire button.
   /// Split evenly between left and right sides.
@@ -161,7 +161,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
                             Icons.check_rounded,
                             key: ValueKey('check'),
                             color: Colors.white,
-                            size: 24, // Keep base size constant
+                            size: 24,
                           ),
                         ))),
                   ),
@@ -224,19 +224,19 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
                   ),
                   child: Center(
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
+                      duration: const Duration(milliseconds: 200),
                       child: _startTextAnimation
                           ? const Text(
                               "Success!",
                               key: ValueKey("success"),
                               style:
-                                  TextStyle(fontSize: 14, color: Colors.white),
+                                  TextStyle(fontSize: 12, color: Colors.white),
                             )
                           : const Text(
-                              "Confirm the Process",
+                              "Confirm Process",
                               key: ValueKey("confirm"),
                               style:
-                                  TextStyle(fontSize: 14, color: Colors.white),
+                                  TextStyle(fontSize: 12, color: Colors.white),
                             ),
                     ),
                   ),
