@@ -1,39 +1,54 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# Confirm Slide Button
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+A Flutter widget that provides a sliding confirmation button - perfect for actions that require deliberate user confirmation.
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+- Sliding confirmation mechanism
+- Customizable appearance
+- Simple to implement
+- Flutter-native design
 
 ## Getting started
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+This package is currently under development and not yet published to pub.dev.
+
+To use it locally, add it to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  confirm_slide_button:
+    path: ../confirm_slide_button
+```
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+Basic example of how to use the widget:
 
 ```dart
-const like = 'sample';
+ConfirmSlideButton(
+  text: 'Slide to confirm',
+  onConfirm: () {
+    print('Confirmed!');
+  },
+)
 ```
 
-## Additional information
+## Development Status
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+This package is currently in development. Features and API may change significantly before the first stable release.
+
+## Contributing
+
+This is an open-source project. Feel free to contribute by:
+- Reporting bugs
+- Suggesting enhancements
+- Submitting pull requests
+
+## TODO
+
+- [ ] Add comprehensive documentation
+- [ ] Create example projects
+- [ ] Add customization options
+- [ ] Write tests
+- [ ] Publish to pub.dev
