@@ -1,9 +1,8 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-/// A custom slide-to-confirm button widget.
+/// A performance-optimized custom slide-to-confirm button widget.
 ///
 /// The user slides a thumb from left to right to confirm an action.
 /// While sliding, the track fills with green behind the thumb.
@@ -21,7 +20,7 @@ class ConfirmSlideButton extends StatefulWidget {
 class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     with SingleTickerProviderStateMixin {
   /// Current horizontal position of the draggable thumb (0 = start).
-  double _dragPosition = 0.0;
+  final ValueNotifier<double> _dragPositionNotifier = ValueNotifier(0.0);
 
   /// Whether the user has completed the slide action.
   bool _confirmed = false;
@@ -30,6 +29,10 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   /// Animation controller for the thumb return animation
   late AnimationController _returnAnimationController;
   late Animation<double> _returnAnimation;
+
+  // Cached layout values
+  late double _buttonWidth;
+  late double _maxThumbPosition;
 
   // === CONFIGURATION CONSTANTS ===
 
@@ -74,22 +77,29 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     ));
 
     _returnAnimation.addListener(() {
-      setState(() {
-        _dragPosition = _returnAnimation.value;
-      });
+      _dragPositionNotifier.value = _returnAnimation.value;
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache expensive calculations
+    _buttonWidth = MediaQuery.of(context).size.width - buttonHorizontalMargin;
+    _maxThumbPosition = _buttonWidth - thumbSize - greenFillThumbSpacing;
   }
 
   @override
   void dispose() {
     _returnAnimationController.dispose();
+    _dragPositionNotifier.dispose();
     super.dispose();
   }
 
   /// Animates the thumb back to the start position
   void _animateThumbReturn() {
     _returnAnimation = Tween<double>(
-      begin: _dragPosition,
+      begin: _dragPositionNotifier.value,
       end: 0.0,
     ).animate(CurvedAnimation(
       parent: _returnAnimationController,
@@ -100,99 +110,274 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     _returnAnimationController.forward();
   }
 
+  void _onDragUpdate(double deltaX) {
+    // Stop any ongoing return animation when user starts dragging
+    if (_returnAnimationController.isAnimating) {
+      _returnAnimationController.stop();
+    }
+
+    final newPosition =
+        (_dragPositionNotifier.value + deltaX).clamp(0.0, _maxThumbPosition);
+    _dragPositionNotifier.value = newPosition;
+  }
+
+  void _onDragEnd() {
+    // If the thumb has reached the end, trigger the confirmation callback
+    if (_dragPositionNotifier.value >= _maxThumbPosition) {
+      setState(() {
+        _confirmed = true;
+        widget.onConfirmed();
+      });
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            _startTextAnimation = true;
+          });
+        }
+      });
+    }
+    // Otherwise, animate the thumb back to start position
+    else {
+      _animateThumbReturn();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Total available width for sliding, excluding side margins.
-    final double buttonWidth =
-        MediaQuery.of(context).size.width - buttonHorizontalMargin;
-
-    // Maximum position the thumb can slide to without overshooting the track.
-    final double maxThumbPosition =
-        buttonWidth - thumbSize - greenFillThumbSpacing;
-
-    final double progress = (_dragPosition / maxThumbPosition).clamp(0.0, 1.0);
-
-    // Calculate blur that peaks at 50% progress and is 0 at the start/end.
-    // The formula 4 * (x - x^2) creates a parabolic curve that is 0 at x=0 and x=1, and 1 at x=0.5.
-    final double blurValue =
-        maxBlurSigma * (4 * (progress - (progress * progress)));
-
-    final double greenWidth = _dragPosition + thumbLeadingOffset;
-
     return Container(
-      key: ValueKey('not-confirmed'),
+      key: const ValueKey('not-confirmed'),
       height: trackHeight,
       margin:
           const EdgeInsets.symmetric(horizontal: buttonHorizontalMargin / 2),
       child: Stack(
         children: [
           // === Layer 1: Background track (static gray bar behind everything) ===
-          Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 600), // Animate size only
-              height: _confirmed ? confirmedButtonHeight : trackHeight,
-              width: _confirmed ? buttonWidth * .6 : buttonWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _confirmed
-                      ? const Color(0xff4ddf69)
-                      : const Color(0xff2f2c32),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: Opacity(
-                  opacity: !_confirmed ? 0.0 : 1.0, // Fade out when confirmed
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: AnimatedContainer(
-                        margin: EdgeInsets.symmetric(
-                            horizontal: _confirmed ? 10 : 0),
-                        duration: const Duration(milliseconds: 600),
-                        width: _confirmed ? thumbSize * .5 : thumbSize,
-                        height: _confirmed ? thumbSize * .5 : thumbSize,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xff0b070a),
+          _BackgroundTrack(
+            confirmed: _confirmed,
+            buttonWidth: _buttonWidth,
+          ),
+
+          // === Layer 2: Green fill (dynamic progress area that grows as the thumb moves) ===
+          if (!_confirmed)
+            _GreenFill(
+              dragPositionNotifier: _dragPositionNotifier,
+            ),
+
+          // === Layer 3: Center text (shimmer animation to draw user attention) ===
+          _CenterText(
+            buttonWidth: _buttonWidth,
+            dragPositionNotifier: _dragPositionNotifier,
+            confirmed: _confirmed,
+            startTextAnimation: _startTextAnimation,
+          ),
+
+          // === Layer 4: Draggable thumb (user interaction handle) ===
+          if (!_confirmed)
+            _DraggableThumb(
+              dragPositionNotifier: _dragPositionNotifier,
+              maxThumbPosition: _maxThumbPosition,
+              onDragUpdate: _onDragUpdate,
+              onDragEnd: _onDragEnd,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Separated draggable thumb widget for performance optimization
+class _DraggableThumb extends StatelessWidget {
+  final ValueNotifier<double> dragPositionNotifier;
+  final double maxThumbPosition;
+  final Function(double) onDragUpdate;
+  final VoidCallback onDragEnd;
+
+  const _DraggableThumb({
+    required this.dragPositionNotifier,
+    required this.maxThumbPosition,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double>(
+      valueListenable: dragPositionNotifier,
+      builder: (context, dragPosition, child) {
+        final double progress =
+            (dragPosition / maxThumbPosition).clamp(0.0, 1.0);
+
+        // Calculate blur value directly using the quadratic formula
+        final double blurValue = _ConfirmSlideButtonState.maxBlurSigma *
+            (4 * (progress - (progress * progress)));
+
+        return Positioned(
+          left: dragPosition + _ConfirmSlideButtonState.thumbLeadingOffset,
+          top: (_ConfirmSlideButtonState.trackHeight -
+                  _ConfirmSlideButtonState.thumbSize) /
+              2,
+          child: GestureDetector(
+            onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
+            onHorizontalDragEnd: (_) => onDragEnd(),
+            child: Container(
+              width: _ConfirmSlideButtonState.thumbSize,
+              height: _ConfirmSlideButtonState.thumbSize,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xff0b070a),
+              ),
+              child: ImageFiltered(
+                imageFilter:
+                    ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: progress < 0.5
+                      ? const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: Colors.white,
+                          size: 20,
+                          key: ValueKey('arrow'),
+                        )
+                      : const Icon(
+                          Icons.check_rounded,
+                          key: ValueKey('check'),
+                          color: Colors.white,
+                          size: 24,
                         ),
-                        child: Center(
-                            child: AnimatedScale(
-                          duration: Duration(milliseconds: 600),
-                          scale: _confirmed ? 0.67 : 1.0,
-                          child: Icon(
-                            Icons.check_rounded,
-                            key: ValueKey('check'),
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ))),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Background track widget - only rebuilds when confirmation state changes
+class _BackgroundTrack extends StatelessWidget {
+  final bool confirmed;
+  final double buttonWidth;
+
+  const _BackgroundTrack({
+    required this.confirmed,
+    required this.buttonWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 600),
+        height: confirmed
+            ? _ConfirmSlideButtonState.confirmedButtonHeight
+            : _ConfirmSlideButtonState.trackHeight,
+        width: confirmed ? buttonWidth * 0.6 : buttonWidth,
+        child: Container(
+          decoration: BoxDecoration(
+            color:
+                confirmed ? const Color(0xff4ddf69) : const Color(0xff2f2c32),
+            borderRadius: BorderRadius.circular(50),
+          ),
+          child: Opacity(
+            opacity: !confirmed ? 0.0 : 1.0,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: AnimatedContainer(
+                margin: EdgeInsets.symmetric(horizontal: confirmed ? 10 : 0),
+                duration: const Duration(milliseconds: 600),
+                width: confirmed
+                    ? _ConfirmSlideButtonState.thumbSize * 0.5
+                    : _ConfirmSlideButtonState.thumbSize,
+                height: confirmed
+                    ? _ConfirmSlideButtonState.thumbSize * 0.5
+                    : _ConfirmSlideButtonState.thumbSize,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xff0b070a),
+                ),
+                child: Center(
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 600),
+                    scale: confirmed ? 0.67 : 1.0,
+                    child: const Icon(
+                      Icons.check_rounded,
+                      key: ValueKey('check'),
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          // === Layer 2: Green fill (dynamic progress area that grows as the thumb moves) ===
-          if (!_confirmed)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: Container(
-                width: _dragPosition + thumbSize + greenFillThumbSpacing,
-                color: const Color(0xff4ddf69),
-              ),
-            ),
+/// Green fill widget - only rebuilds when drag position changes
+class _GreenFill extends StatelessWidget {
+  final ValueNotifier<double> dragPositionNotifier;
 
-          // === Layer 3: Center text (shimmer animation to draw user attention) ===
-          SizedBox(
-            width: buttonWidth,
-            height: trackHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Gray shimmer text (right side only)
-                ClipRect(
-                  clipper: _HorizontalClipper(
-                    left: _dragPosition + thumbSize + greenFillThumbSpacing,
-                    right: buttonWidth,
-                  ),
+  const _GreenFill({
+    required this.dragPositionNotifier,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double>(
+      valueListenable: dragPositionNotifier,
+      builder: (context, dragPosition, child) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: Container(
+            width: dragPosition +
+                _ConfirmSlideButtonState.thumbSize +
+                _ConfirmSlideButtonState.greenFillThumbSpacing,
+            color: const Color(0xff4ddf69),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Center text widget with optimized rebuilds
+class _CenterText extends StatelessWidget {
+  final double buttonWidth;
+  final ValueNotifier<double> dragPositionNotifier;
+  final bool confirmed;
+  final bool startTextAnimation;
+
+  const _CenterText({
+    required this.buttonWidth,
+    required this.dragPositionNotifier,
+    required this.confirmed,
+    required this.startTextAnimation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: buttonWidth,
+      height: _ConfirmSlideButtonState.trackHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Gray shimmer text (right side only) - wrapped in RepaintBoundary for performance
+          ValueListenableBuilder<double>(
+            valueListenable: dragPositionNotifier,
+            builder: (context, dragPosition, child) {
+              return ClipRect(
+                clipper: _HorizontalClipper(
+                  left: dragPosition +
+                      _ConfirmSlideButtonState.thumbSize +
+                      _ConfirmSlideButtonState.greenFillThumbSpacing,
+                  right: buttonWidth,
+                ),
+                child: RepaintBoundary(
                   child: Center(
                     child: Shimmer(
                       period: const Duration(seconds: 3),
@@ -202,11 +387,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
                           Colors.white,
                           Color(0xff8f8c91),
                         ],
-                        stops: [
-                          0.45,
-                          0.50,
-                          0.55,
-                        ],
+                        stops: [0.45, 0.50, 0.55],
                       ),
                       child: const Text(
                         "Slide to Confirm",
@@ -215,108 +396,48 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
                     ),
                   ),
                 ),
-
-                // Green text (left side only)
-                ClipRect(
-                  clipper: _HorizontalClipper(
-                    left: 0,
-                    right: greenWidth,
-                  ),
-                  child: Center(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: _startTextAnimation
-                          ? const Text(
-                              "Success!",
-                              key: ValueKey("success"),
-                              style:
-                                  TextStyle(fontSize: 12, color: Colors.white),
-                            )
-                          : const Text(
-                              "Confirm Process",
-                              key: ValueKey("confirm"),
-                              style:
-                                  TextStyle(fontSize: 12, color: Colors.white),
-                            ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
 
-          // === Layer 4: Draggable thumb (user interaction handle) ===
+          // Green text (left side only)
+          ValueListenableBuilder<double>(
+            valueListenable: dragPositionNotifier,
+            builder: (context, dragPosition, child) {
+              final double greenWidth =
+                  dragPosition + _ConfirmSlideButtonState.thumbLeadingOffset;
 
-          if (!_confirmed)
-            Positioned(
-              left: _dragPosition + thumbLeadingOffset,
-              top: (trackHeight - thumbSize) / 2, // Center vertically
-              child: GestureDetector(
-                // Handle thumb movement while dragging
-                onHorizontalDragUpdate: (details) {
-                  // Stop any ongoing return animation when user starts dragging
-                  if (_returnAnimationController.isAnimating) {
-                    _returnAnimationController.stop();
-                  }
-
-                  setState(() {
-                    _dragPosition += details.delta.dx;
-                    _dragPosition = _dragPosition.clamp(0.0, maxThumbPosition);
-                  });
-                },
-
-                onHorizontalDragEnd: (_) {
-                  // If the thumb has reached the end, trigger the confirmation callback
-                  if (_dragPosition >= maxThumbPosition) {
-                    setState(() {
-                      _confirmed = true;
-                      widget.onConfirmed();
-                    });
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                      setState(() {
-                        _startTextAnimation = true;
-                      });
-                    });
-                  }
-                  // Otherwise, animate the thumb back to start position
-                  else {
-                    _animateThumbReturn();
-                  }
-                },
-                child: Container(
-                  width: thumbSize,
-                  height: thumbSize,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xff0b070a),
-                  ),
-                  child: ImageFiltered(
-                    imageFilter:
-                        ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: progress < 0.5
-                          ? const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: Colors.white,
-                              size: 20,
-                              key: ValueKey('arrow'),
-                            )
-                          : Icon(Icons.check_rounded,
-                              key: ValueKey('check'),
-                              color: Colors.white,
-                              size: 24),
-                    ),
+              return ClipRect(
+                clipper: _HorizontalClipper(
+                  left: 0,
+                  right: greenWidth,
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: startTextAnimation
+                        ? const Text(
+                            "Success!",
+                            key: ValueKey("success"),
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          )
+                        : const Text(
+                            "Confirm Process",
+                            key: ValueKey("confirm"),
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 }
 
+/// Custom clipper for horizontal text clipping
 class _HorizontalClipper extends CustomClipper<Rect> {
   final double left;
   final double right;
