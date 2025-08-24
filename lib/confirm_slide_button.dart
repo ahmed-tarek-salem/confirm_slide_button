@@ -101,7 +101,7 @@ class ConfirmSlideButton extends StatefulWidget {
       this.startThumbWidget = const Icon(Icons.arrow_forward_ios_rounded,
           color: Colors.white, size: 20),
       this.endThumbWidget =
-          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+          const Icon(Icons.check_rounded, color: Colors.white, size: 24),
       this.thumbColor = Colors.black})
       : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
             'shrinkedTrackHeightFactor must be between 0 and 1'),
@@ -243,6 +243,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             fillColor: widget.fillColor,
             thumbContainerColor: widget.thumbContainerColor,
             trackBackgroundColor: widget.trackBackgroundColor,
+            endThumbWidget: widget.endThumbWidget,
           ),
 
           // === Layer 2: Progress fill (dynamic progress area that grows as the thumb moves) ===
@@ -372,6 +373,7 @@ class _BackgroundTrack extends StatelessWidget {
   final Color fillColor;
   final Color thumbContainerColor;
   final Color trackBackgroundColor;
+  final Widget endThumbWidget;
 
   const _BackgroundTrack({
     required this.confirmed,
@@ -382,6 +384,7 @@ class _BackgroundTrack extends StatelessWidget {
     required this.fillColor,
     required this.thumbContainerColor,
     required this.trackBackgroundColor,
+    required this.endThumbWidget,
   });
 
   @override
@@ -396,7 +399,10 @@ class _BackgroundTrack extends StatelessWidget {
             color: confirmed ? fillColor : trackBackgroundColor,
             borderRadius: BorderRadius.circular(50),
           ),
-          child: Opacity(
+          child:
+              // Another thumb container which will be animated to shrink
+              // when the user confirms the action.
+              Opacity(
             opacity: !confirmed ? 0.0 : 1.0,
             child: Align(
               alignment: Alignment.centerRight,
@@ -405,21 +411,15 @@ class _BackgroundTrack extends StatelessWidget {
                 duration: const Duration(milliseconds: 600),
                 width: confirmed ? thumbSize * 0.5 : thumbSize,
                 height: confirmed ? thumbSize * 0.5 : thumbSize,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xff0b070a),
+                  color: thumbContainerColor,
                 ),
                 child: Center(
                   child: AnimatedScale(
-                    duration: const Duration(milliseconds: 600),
-                    scale: confirmed ? 0.67 : 1.0,
-                    child: const Icon(
-                      Icons.check_rounded,
-                      key: ValueKey('check'),
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                      duration: const Duration(milliseconds: 600),
+                      scale: confirmed ? 0.67 : 1.0,
+                      child: endThumbWidget),
                 ),
               ),
             ),
