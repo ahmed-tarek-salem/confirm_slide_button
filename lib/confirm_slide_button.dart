@@ -59,6 +59,11 @@ class ConfirmSlideButton extends StatefulWidget {
   final TextStyle? duringConfirmTextStyle;
   final TextStyle? afterConfirmTextStyle;
 
+  final Color baseShimmerColor;
+  final Color highlightShimmerColor;
+
+  final bool hasShimmerAnimation;
+
   const ConfirmSlideButton({
     super.key,
     required this.onConfirmed,
@@ -74,6 +79,9 @@ class ConfirmSlideButton extends StatefulWidget {
     this.fillColor = const Color(0xff4ddf69),
     this.margin = const EdgeInsets.symmetric(horizontal: 20),
     this.thumbHorizontalBorderWidth = 4.0,
+    this.baseShimmerColor = Colors.grey,
+    this.highlightShimmerColor = Colors.white,
+    this.hasShimmerAnimation = true,
   })  : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
             'shrinkedTrackHeightFactor must be between 0 and 1'),
         assert(thumbHorizontalBorderWidth >= 0,
@@ -95,22 +103,19 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   bool _startTextAnimation = false;
 
   /// Animation controller for the thumb return animation
-  late AnimationController _returnAnimationController;
-  late Animation<double> _returnAnimation;
+  late final AnimationController _returnAnimationController;
+  late final Animation<double> _returnAnimation;
 
   // Cached layout values
-  late double _buttonWidth;
-  late double _maxThumbPosition;
-
-  // === CONFIGURATION CONSTANTS ===
+  late final double _buttonWidth;
+  late final double _maxThumbPosition;
+  late final double confirmedButtonHeight;
 
   /// Maximum blur intensity applied when the thumb is in the middle.
   static const double maxBlurSigma = 4.0;
 
   /// For left and right thumb border width
   double get thumbBorderWidthDoubled => widget.thumbHorizontalBorderWidth * 2;
-
-  late final double confirmedButtonHeight;
 
   @override
   void initState() {
@@ -239,6 +244,12 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             beforeConfirmText: widget.beforeConfirmText,
             duringConfirmText: widget.duringConfirmText,
             afterConfirmText: widget.afterConfirmText,
+            afterConfirmTextStyle: widget.afterConfirmTextStyle,
+            beforeConfirmTextStyle: widget.beforeConfirmTextStyle,
+            duringConfirmTextStyle: widget.duringConfirmTextStyle,
+            baseShimmerColor: widget.baseShimmerColor,
+            highlightShimmerColor: widget.highlightShimmerColor,
+            hasShimmerAnimation: widget.hasShimmerAnimation,
           ),
 
           // === Layer 4: Draggable thumb (user interaction handle) ===
@@ -442,6 +453,9 @@ class _CenterText extends StatelessWidget {
   final TextStyle? beforeConfirmTextStyle;
   final TextStyle? duringConfirmTextStyle;
   final TextStyle? afterConfirmTextStyle;
+  final Color baseShimmerColor;
+  final Color highlightShimmerColor;
+  final bool hasShimmerAnimation;
 
   const _CenterText({
     required this.buttonWidth,
@@ -455,9 +469,12 @@ class _CenterText extends StatelessWidget {
     required this.beforeConfirmText,
     required this.duringConfirmText,
     required this.afterConfirmText,
-    this.beforeConfirmTextStyle,
-    this.duringConfirmTextStyle,
-    this.afterConfirmTextStyle,
+    required this.beforeConfirmTextStyle,
+    required this.duringConfirmTextStyle,
+    required this.afterConfirmTextStyle,
+    required this.baseShimmerColor,
+    required this.highlightShimmerColor,
+    required this.hasShimmerAnimation,
   });
 
   @override
@@ -479,21 +496,26 @@ class _CenterText extends StatelessWidget {
                 ),
                 child: RepaintBoundary(
                   child: Center(
-                    child: Shimmer(
-                      period: const Duration(seconds: 3),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xff8f8c91),
-                          Colors.white,
-                          Color(0xff8f8c91),
-                        ],
-                        stops: [0.45, 0.50, 0.55],
-                      ),
-                      child: Text(
-                        beforeConfirmText,
-                        style: beforeConfirmTextStyle,
-                      ),
-                    ),
+                    child: hasShimmerAnimation
+                        ? Shimmer(
+                            period: const Duration(seconds: 3),
+                            gradient: LinearGradient(
+                              colors: [
+                                baseShimmerColor,
+                                highlightShimmerColor,
+                                baseShimmerColor,
+                              ],
+                              stops: [0.45, 0.50, 0.55],
+                            ),
+                            child: Text(
+                              beforeConfirmText,
+                              style: beforeConfirmTextStyle,
+                            ),
+                          )
+                        : Text(
+                            beforeConfirmText,
+                            style: beforeConfirmTextStyle,
+                          ),
                   ),
                 ),
               );
