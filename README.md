@@ -47,8 +47,8 @@ This is an open-source project. Feel free to contribute by:
 
 ## TODO
 
-- [ ] Add comprehensive documentation
-- [ ] Create example projects
+- [x] Add comprehensive documentation
+- [x] Create example project
 - [ ] Add customization options
 - [ ] Write tests
 - [ ] Publish to pub.dev
