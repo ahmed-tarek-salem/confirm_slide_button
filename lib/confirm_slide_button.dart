@@ -559,8 +559,12 @@ class _DraggableThumb extends StatelessWidget {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: progressRatio < 0.5
-                      ? initialThumbChild
-                      : completedThumbChild,
+                      ? SizedBox(
+                          key: const ValueKey('initial-thumb'),
+                          child: initialThumbChild)
+                      : SizedBox(
+                          key: const ValueKey('completed-thumb'),
+                          child: completedThumbChild),
                 ),
               ),
             ),
