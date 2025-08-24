@@ -5,13 +5,15 @@ import 'package:shimmer/shimmer.dart';
 /// A performance-optimized custom slide-to-confirm button widget.
 ///
 /// The user slides a thumb from left to right to confirm an action.
-/// While sliding, the track fills with green behind the thumb.
+/// While sliding, the track fills with [fillColor] behind the thumb.
 /// When the thumb reaches the end, [onConfirmed] is triggered.
 class ConfirmSlideButton extends StatefulWidget {
   /// Callback executed when the slide is completed.
   final VoidCallback onConfirmed;
 
   /// Total height of the track (background area).
+  /// Must be greater than or equal to [thumbSize].
+  /// The differnce between [trackHeight] and [thumbSize] determines the vertical border space.
   ///
   /// Defaults to 60.
   final double trackHeight;
@@ -39,16 +41,45 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Defaults to EdgeInsets.symmetric(horizontal: 20).
   final EdgeInsets margin;
 
+  /// Horizontal border width between the thumb and the progress fill.
+  ///
+  /// Defaults to 4.0.
+  final double thumbHorizontalBorderWidth;
+
+  /// Text displayed before confirmation (when the user hasn't started sliding).
+  final String beforeConfirmText;
+
+  /// Text displayed during confirmation (when the user is sliding).
+  final String duringConfirmText;
+
+  /// Text displayed after confirmation (when the user has confirmed).
+  final String afterConfirmText;
+
+  final TextStyle? beforeConfirmTextStyle;
+  final TextStyle? duringConfirmTextStyle;
+  final TextStyle? afterConfirmTextStyle;
+
   const ConfirmSlideButton({
     super.key,
     required this.onConfirmed,
+    required this.beforeConfirmText,
+    required this.duringConfirmText,
+    required this.afterConfirmText,
+    this.beforeConfirmTextStyle,
+    this.duringConfirmTextStyle,
+    this.afterConfirmTextStyle,
     this.trackHeight = 60,
     this.shrinkedTrackHeightFactor = 0.8,
     this.thumbSize = 50,
     this.fillColor = const Color(0xff4ddf69),
     this.margin = const EdgeInsets.symmetric(horizontal: 20),
-  }) : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
-            'shrinkedTrackHeightFactor must be between 0 and 1');
+    this.thumbHorizontalBorderWidth = 4.0,
+  })  : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
+            'shrinkedTrackHeightFactor must be between 0 and 1'),
+        assert(thumbHorizontalBorderWidth >= 0,
+            'borderSpace must be non-negative'),
+        assert(trackHeight >= thumbSize,
+            'trackHeight must be greater than or equal to thumbSize');
 
   @override
   State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
@@ -73,16 +104,11 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
 
   // === CONFIGURATION CONSTANTS ===
 
-  /// Horizontal padding between the draggable thumb and the green fill.
-  /// Creates visual separation so the thumb appears distinct from the filled area.
-  static const double greenFillThumbSpacing = 8;
-
-  /// Leading offset to horizontally center the thumb relative to the green fill.
-  /// Typically set to half of [greenFillThumbSpacing] for perfect visual balance.
-  static const double thumbLeadingOffset = 4;
-
   /// Maximum blur intensity applied when the thumb is in the middle.
   static const double maxBlurSigma = 4.0;
+
+  /// For left and right thumb border width
+  double get thumbBorderWidthDoubled => widget.thumbHorizontalBorderWidth * 2;
 
   late final double confirmedButtonHeight;
 
@@ -116,7 +142,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     // Cache expensive calculations - use the actual horizontal margin from EdgeInsets
     final horizontalMargin = widget.margin.left + widget.margin.right;
     _buttonWidth = MediaQuery.of(context).size.width - horizontalMargin;
-    _maxThumbPosition = _buttonWidth - widget.thumbSize - greenFillThumbSpacing;
+    _maxThumbPosition =
+        _buttonWidth - widget.thumbSize - thumbBorderWidthDoubled;
   }
 
   @override
@@ -196,6 +223,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
               dragPositionNotifier: _dragPositionNotifier,
               thumbSize: widget.thumbSize,
               fillColor: widget.fillColor,
+              thumbSpacing: thumbBorderWidthDoubled,
             ),
 
           // === Layer 3: Center text (shimmer animation to draw user attention) ===
@@ -206,6 +234,11 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             startTextAnimation: _startTextAnimation,
             trackHeight: widget.trackHeight,
             thumbSize: widget.thumbSize,
+            thumbSpacing: thumbBorderWidthDoubled,
+            thumbLeadingOffset: widget.thumbHorizontalBorderWidth,
+            beforeConfirmText: widget.beforeConfirmText,
+            duringConfirmText: widget.duringConfirmText,
+            afterConfirmText: widget.afterConfirmText,
           ),
 
           // === Layer 4: Draggable thumb (user interaction handle) ===
@@ -217,6 +250,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
               onDragEnd: _onDragEnd,
               trackHeight: widget.trackHeight,
               thumbSize: widget.thumbSize,
+              thumbBorderWidth: widget.thumbHorizontalBorderWidth,
             ),
         ],
       ),
@@ -232,6 +266,7 @@ class _DraggableThumb extends StatelessWidget {
   final VoidCallback onDragEnd;
   final double trackHeight;
   final double thumbSize;
+  final double thumbBorderWidth;
 
   const _DraggableThumb({
     required this.dragPositionNotifier,
@@ -240,6 +275,7 @@ class _DraggableThumb extends StatelessWidget {
     required this.onDragEnd,
     required this.trackHeight,
     required this.thumbSize,
+    required this.thumbBorderWidth,
   });
 
   @override
@@ -255,7 +291,7 @@ class _DraggableThumb extends StatelessWidget {
             (4 * (progress - (progress * progress)));
 
         return Positioned(
-          left: dragPosition + _ConfirmSlideButtonState.thumbLeadingOffset,
+          left: dragPosition + thumbBorderWidth,
           top: (trackHeight - thumbSize) / 2,
           child: GestureDetector(
             onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
@@ -364,11 +400,13 @@ class _ProgressFill extends StatelessWidget {
   final ValueNotifier<double> dragPositionNotifier;
   final double thumbSize;
   final Color fillColor;
+  final double thumbSpacing;
 
   const _ProgressFill({
     required this.dragPositionNotifier,
     required this.thumbSize,
     required this.fillColor,
+    required this.thumbSpacing,
   });
 
   @override
@@ -379,9 +417,7 @@ class _ProgressFill extends StatelessWidget {
         return ClipRRect(
           borderRadius: BorderRadius.circular(50),
           child: Container(
-            width: dragPosition +
-                thumbSize +
-                _ConfirmSlideButtonState.greenFillThumbSpacing,
+            width: dragPosition + thumbSize + thumbSpacing,
             color: fillColor,
           ),
         );
@@ -398,6 +434,14 @@ class _CenterText extends StatelessWidget {
   final bool startTextAnimation;
   final double trackHeight;
   final double thumbSize;
+  final double thumbSpacing;
+  final double thumbLeadingOffset;
+  final String beforeConfirmText;
+  final String duringConfirmText;
+  final String afterConfirmText;
+  final TextStyle? beforeConfirmTextStyle;
+  final TextStyle? duringConfirmTextStyle;
+  final TextStyle? afterConfirmTextStyle;
 
   const _CenterText({
     required this.buttonWidth,
@@ -406,6 +450,14 @@ class _CenterText extends StatelessWidget {
     required this.startTextAnimation,
     required this.trackHeight,
     required this.thumbSize,
+    required this.thumbSpacing,
+    required this.thumbLeadingOffset,
+    required this.beforeConfirmText,
+    required this.duringConfirmText,
+    required this.afterConfirmText,
+    this.beforeConfirmTextStyle,
+    this.duringConfirmTextStyle,
+    this.afterConfirmTextStyle,
   });
 
   @override
@@ -422,9 +474,7 @@ class _CenterText extends StatelessWidget {
             builder: (context, dragPosition, child) {
               return ClipRect(
                 clipper: _HorizontalClipper(
-                  left: dragPosition +
-                      thumbSize +
-                      _ConfirmSlideButtonState.greenFillThumbSpacing,
+                  left: dragPosition + thumbSize + thumbSpacing,
                   right: buttonWidth,
                 ),
                 child: RepaintBoundary(
@@ -439,9 +489,9 @@ class _CenterText extends StatelessWidget {
                         ],
                         stops: [0.45, 0.50, 0.55],
                       ),
-                      child: const Text(
-                        "Slide to Confirm",
-                        style: TextStyle(color: Colors.white),
+                      child: Text(
+                        beforeConfirmText,
+                        style: beforeConfirmTextStyle,
                       ),
                     ),
                   ),
@@ -450,31 +500,30 @@ class _CenterText extends StatelessWidget {
             },
           ),
 
-          // Green text (left side only)
+          // Text in the fill area (left side only)
           ValueListenableBuilder<double>(
             valueListenable: dragPositionNotifier,
             builder: (context, dragPosition, child) {
-              final double greenWidth =
-                  dragPosition + _ConfirmSlideButtonState.thumbLeadingOffset;
+              final double fillWidth = dragPosition + thumbLeadingOffset;
 
               return ClipRect(
                 clipper: _HorizontalClipper(
                   left: 0,
-                  right: greenWidth,
+                  right: fillWidth,
                 ),
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: startTextAnimation
-                        ? const Text(
-                            "Success!",
-                            key: ValueKey("success"),
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                        ? Text(
+                            afterConfirmText,
+                            key: ValueKey("after-confirm"),
+                            style: afterConfirmTextStyle,
                           )
-                        : const Text(
-                            "Confirm Process",
-                            key: ValueKey("confirm"),
-                            style: TextStyle(fontSize: 12, color: Colors.white),
+                        : Text(
+                            duringConfirmText,
+                            key: ValueKey("during-confirm"),
+                            style: duringConfirmTextStyle,
                           ),
                   ),
                 ),

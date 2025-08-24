@@ -35,6 +35,12 @@ class _MyAppState extends State<MyApp> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ConfirmSlideButton(
+                beforeConfirmText: "Slide to Confirm",
+                // beforeConfirmTextStyle: TextStyle(color: Colors.white),
+                duringConfirmText: "Confirming...",
+                // duringConfirmTextStyle: TextStyle(fontSize: 12, color: Colors.white),
+                // afterConfirmTextStyle: TextStyle(fontSize: 12, color: Colors.white),
+                afterConfirmText: "Success!",
                 onConfirmed: () {
                   setState(() {
                     isSuccess = true;
