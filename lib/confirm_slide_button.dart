@@ -71,6 +71,9 @@ class ConfirmSlideButton extends StatefulWidget {
 
   final Color trackBackgroundColor;
 
+  final double buttonWidthShrinkageFactor;
+  final double thumbSizeShrinkageFactor;
+
   /// Optional widgets to display inside the thumb before and after confirmation.
   /// If not provided, default icons will be used.
   ///
@@ -78,37 +81,44 @@ class ConfirmSlideButton extends StatefulWidget {
   final Widget startThumbWidget;
   final Widget endThumbWidget;
 
-  const ConfirmSlideButton(
-      {super.key,
-      required this.onConfirmed,
-      required this.beforeConfirmText,
-      required this.duringConfirmText,
-      required this.afterConfirmText,
-      this.beforeConfirmTextStyle,
-      this.duringConfirmTextStyle,
-      this.afterConfirmTextStyle,
-      this.trackHeight = 60,
-      this.shrinkedTrackHeightFactor = 0.8,
-      this.thumbSize = 50,
-      this.fillColor = Colors.greenAccent,
-      this.margin = const EdgeInsets.symmetric(horizontal: 20),
-      this.thumbHorizontalBorderWidth = 4.0,
-      this.baseShimmerColor = Colors.grey,
-      this.highlightShimmerColor = Colors.white,
-      this.hasShimmerAnimation = true,
-      this.thumbContainerColor = Colors.black,
-      this.trackBackgroundColor = const Color(0xff2f2c32),
-      this.startThumbWidget = const Icon(Icons.arrow_forward_ios_rounded,
-          color: Colors.white, size: 20),
-      this.endThumbWidget =
-          const Icon(Icons.check_rounded, color: Colors.white, size: 24),
-      this.thumbColor = Colors.black})
-      : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
+  const ConfirmSlideButton({
+    super.key,
+    required this.onConfirmed,
+    required this.beforeConfirmText,
+    required this.duringConfirmText,
+    required this.afterConfirmText,
+    this.beforeConfirmTextStyle,
+    this.duringConfirmTextStyle,
+    this.afterConfirmTextStyle,
+    this.trackHeight = 60,
+    this.shrinkedTrackHeightFactor = 0.8,
+    this.thumbSize = 50,
+    this.fillColor = Colors.greenAccent,
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
+    this.thumbHorizontalBorderWidth = 4.0,
+    this.baseShimmerColor = Colors.grey,
+    this.highlightShimmerColor = Colors.white,
+    this.hasShimmerAnimation = true,
+    this.thumbContainerColor = Colors.black,
+    this.trackBackgroundColor = const Color(0xff2f2c32),
+    this.startThumbWidget = const Icon(Icons.arrow_forward_ios_rounded,
+        color: Colors.white, size: 20),
+    this.endThumbWidget =
+        const Icon(Icons.check_rounded, color: Colors.white, size: 24),
+    this.thumbColor = Colors.black,
+    this.buttonWidthShrinkageFactor = 0.6,
+    this.thumbSizeShrinkageFactor = 0.5,
+  })  : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
             'shrinkedTrackHeightFactor must be between 0 and 1'),
         assert(thumbHorizontalBorderWidth >= 0,
             'borderSpace must be non-negative'),
         assert(trackHeight >= thumbSize,
-            'trackHeight must be greater than or equal to thumbSize');
+            'trackHeight must be greater than or equal to thumbSize'),
+        assert(
+            buttonWidthShrinkageFactor >= 0 && buttonWidthShrinkageFactor <= 1,
+            'buttonWidthShrinkageFactor must be between 0 and 1'),
+        assert(thumbSizeShrinkageFactor >= 0 && thumbSizeShrinkageFactor <= 1,
+            'thumbSizeShrinkageFactor must be between 0 and 1');
 
   @override
   State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
@@ -244,6 +254,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             thumbContainerColor: widget.thumbContainerColor,
             trackBackgroundColor: widget.trackBackgroundColor,
             endThumbWidget: widget.endThumbWidget,
+            buttonWidthShrinkageFactor: widget.buttonWidthShrinkageFactor,
+            thumbSizeShrinkageFactor: widget.thumbSizeShrinkageFactor,
           ),
 
           // === Layer 2: Progress fill (dynamic progress area that grows as the thumb moves) ===
@@ -374,6 +386,8 @@ class _BackgroundTrack extends StatelessWidget {
   final Color thumbContainerColor;
   final Color trackBackgroundColor;
   final Widget endThumbWidget;
+  final double buttonWidthShrinkageFactor;
+  final double thumbSizeShrinkageFactor;
 
   const _BackgroundTrack({
     required this.confirmed,
@@ -385,6 +399,8 @@ class _BackgroundTrack extends StatelessWidget {
     required this.thumbContainerColor,
     required this.trackBackgroundColor,
     required this.endThumbWidget,
+    required this.buttonWidthShrinkageFactor,
+    required this.thumbSizeShrinkageFactor,
   });
 
   @override
@@ -393,7 +409,8 @@ class _BackgroundTrack extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 600),
         height: confirmed ? confirmedButtonHeight : trackHeight,
-        width: confirmed ? buttonWidth * 0.6 : buttonWidth,
+        width:
+            confirmed ? buttonWidth * buttonWidthShrinkageFactor : buttonWidth,
         child: Container(
           decoration: BoxDecoration(
             color: confirmed ? fillColor : trackBackgroundColor,
@@ -409,8 +426,12 @@ class _BackgroundTrack extends StatelessWidget {
               child: AnimatedContainer(
                 margin: EdgeInsets.symmetric(horizontal: confirmed ? 10 : 0),
                 duration: const Duration(milliseconds: 600),
-                width: confirmed ? thumbSize * 0.5 : thumbSize,
-                height: confirmed ? thumbSize * 0.5 : thumbSize,
+                width: confirmed
+                    ? thumbSize * thumbSizeShrinkageFactor
+                    : thumbSize,
+                height: confirmed
+                    ? thumbSize * thumbSizeShrinkageFactor
+                    : thumbSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: thumbContainerColor,
@@ -418,7 +439,7 @@ class _BackgroundTrack extends StatelessWidget {
                 child: Center(
                   child: AnimatedScale(
                       duration: const Duration(milliseconds: 600),
-                      scale: confirmed ? 0.67 : 1.0,
+                      scale: confirmed ? thumbSizeShrinkageFactor : 1.0,
                       child: endThumbWidget),
                 ),
               ),
