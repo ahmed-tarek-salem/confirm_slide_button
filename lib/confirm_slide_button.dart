@@ -29,6 +29,9 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Defaults to 50.
   final double thumbSize;
 
+  /// Color of the draggable thumb.
+  final Color thumbColor;
+
   /// Color of the progress fill.
   final Color fillColor;
 
@@ -64,25 +67,43 @@ class ConfirmSlideButton extends StatefulWidget {
 
   final bool hasShimmerAnimation;
 
-  const ConfirmSlideButton({
-    super.key,
-    required this.onConfirmed,
-    required this.beforeConfirmText,
-    required this.duringConfirmText,
-    required this.afterConfirmText,
-    this.beforeConfirmTextStyle,
-    this.duringConfirmTextStyle,
-    this.afterConfirmTextStyle,
-    this.trackHeight = 60,
-    this.shrinkedTrackHeightFactor = 0.8,
-    this.thumbSize = 50,
-    this.fillColor = const Color(0xff4ddf69),
-    this.margin = const EdgeInsets.symmetric(horizontal: 20),
-    this.thumbHorizontalBorderWidth = 4.0,
-    this.baseShimmerColor = Colors.grey,
-    this.highlightShimmerColor = Colors.white,
-    this.hasShimmerAnimation = true,
-  })  : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
+  final Color thumbContainerColor;
+
+  final Color trackBackgroundColor;
+
+  /// Optional widgets to display inside the thumb before and after confirmation.
+  /// If not provided, default icons will be used.
+  ///
+  /// The transition between the widgets will be animated.
+  final Widget startThumbWidget;
+  final Widget endThumbWidget;
+
+  const ConfirmSlideButton(
+      {super.key,
+      required this.onConfirmed,
+      required this.beforeConfirmText,
+      required this.duringConfirmText,
+      required this.afterConfirmText,
+      this.beforeConfirmTextStyle,
+      this.duringConfirmTextStyle,
+      this.afterConfirmTextStyle,
+      this.trackHeight = 60,
+      this.shrinkedTrackHeightFactor = 0.8,
+      this.thumbSize = 50,
+      this.fillColor = Colors.greenAccent,
+      this.margin = const EdgeInsets.symmetric(horizontal: 20),
+      this.thumbHorizontalBorderWidth = 4.0,
+      this.baseShimmerColor = Colors.grey,
+      this.highlightShimmerColor = Colors.white,
+      this.hasShimmerAnimation = true,
+      this.thumbContainerColor = Colors.black,
+      this.trackBackgroundColor = const Color(0xff2f2c32),
+      this.startThumbWidget = const Icon(Icons.arrow_forward_ios_rounded,
+          color: Colors.white, size: 20),
+      this.endThumbWidget =
+          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+      this.thumbColor = Colors.black})
+      : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
             'shrinkedTrackHeightFactor must be between 0 and 1'),
         assert(thumbHorizontalBorderWidth >= 0,
             'borderSpace must be non-negative'),
@@ -104,7 +125,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
 
   /// Animation controller for the thumb return animation
   late final AnimationController _returnAnimationController;
-  late final Animation<double> _returnAnimation;
+  late Animation<double> _returnAnimation;
 
   // Cached layout values
   late final double _buttonWidth;
@@ -220,6 +241,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             trackHeight: widget.trackHeight,
             thumbSize: widget.thumbSize,
             fillColor: widget.fillColor,
+            thumbContainerColor: widget.thumbContainerColor,
+            trackBackgroundColor: widget.trackBackgroundColor,
           ),
 
           // === Layer 2: Progress fill (dynamic progress area that grows as the thumb moves) ===
@@ -262,6 +285,9 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
               trackHeight: widget.trackHeight,
               thumbSize: widget.thumbSize,
               thumbBorderWidth: widget.thumbHorizontalBorderWidth,
+              endThumbWidget: widget.endThumbWidget,
+              startThumbWidget: widget.startThumbWidget,
+              thumbColor: widget.thumbColor,
             ),
         ],
       ),
@@ -278,6 +304,9 @@ class _DraggableThumb extends StatelessWidget {
   final double trackHeight;
   final double thumbSize;
   final double thumbBorderWidth;
+  final Widget startThumbWidget;
+  final Widget endThumbWidget;
+  final Color thumbColor;
 
   const _DraggableThumb({
     required this.dragPositionNotifier,
@@ -287,6 +316,9 @@ class _DraggableThumb extends StatelessWidget {
     required this.trackHeight,
     required this.thumbSize,
     required this.thumbBorderWidth,
+    required this.startThumbWidget,
+    required this.endThumbWidget,
+    required this.thumbColor,
   });
 
   @override
@@ -310,28 +342,16 @@ class _DraggableThumb extends StatelessWidget {
             child: Container(
               width: thumbSize,
               height: thumbSize,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xff0b070a),
+                color: thumbColor,
               ),
               child: ImageFiltered(
                 imageFilter:
                     ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  child: progress < 0.5
-                      ? const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: Colors.white,
-                          size: 20,
-                          key: ValueKey('arrow'),
-                        )
-                      : const Icon(
-                          Icons.check_rounded,
-                          key: ValueKey('check'),
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                  child: progress < 0.5 ? startThumbWidget : endThumbWidget,
                 ),
               ),
             ),
@@ -350,6 +370,8 @@ class _BackgroundTrack extends StatelessWidget {
   final double trackHeight;
   final double thumbSize;
   final Color fillColor;
+  final Color thumbContainerColor;
+  final Color trackBackgroundColor;
 
   const _BackgroundTrack({
     required this.confirmed,
@@ -358,6 +380,8 @@ class _BackgroundTrack extends StatelessWidget {
     required this.trackHeight,
     required this.thumbSize,
     required this.fillColor,
+    required this.thumbContainerColor,
+    required this.trackBackgroundColor,
   });
 
   @override
@@ -369,7 +393,7 @@ class _BackgroundTrack extends StatelessWidget {
         width: confirmed ? buttonWidth * 0.6 : buttonWidth,
         child: Container(
           decoration: BoxDecoration(
-            color: confirmed ? fillColor : const Color(0xff2f2c32),
+            color: confirmed ? fillColor : trackBackgroundColor,
             borderRadius: BorderRadius.circular(50),
           ),
           child: Opacity(
