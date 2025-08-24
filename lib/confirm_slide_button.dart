@@ -30,6 +30,15 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Color of the progress fill.
   final Color fillColor;
 
+  /// Margin around the entire button.
+  ///
+  /// This controls the spacing around the slide button.
+  /// Only horizontal margins (left/right) affect the button's interactive width.
+  /// Vertical margins only add spacing above/below the button.
+  ///
+  /// Defaults to EdgeInsets.symmetric(horizontal: 20).
+  final EdgeInsets margin;
+
   const ConfirmSlideButton({
     super.key,
     required this.onConfirmed,
@@ -37,6 +46,7 @@ class ConfirmSlideButton extends StatefulWidget {
     this.shrinkedTrackHeightFactor = 0.8,
     this.thumbSize = 50,
     this.fillColor = const Color(0xff4ddf69),
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
   }) : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
             'shrinkedTrackHeightFactor must be between 0 and 1');
 
@@ -71,10 +81,6 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   /// Typically set to half of [greenFillThumbSpacing] for perfect visual balance.
   static const double thumbLeadingOffset = 4;
 
-  /// Total horizontal margin applied to the entire button.
-  /// Split evenly between left and right sides.
-  static const double buttonHorizontalMargin = 40;
-
   /// Maximum blur intensity applied when the thumb is in the middle.
   static const double maxBlurSigma = 4.0;
 
@@ -107,8 +113,9 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Cache expensive calculations
-    _buttonWidth = MediaQuery.of(context).size.width - buttonHorizontalMargin;
+    // Cache expensive calculations - use the actual horizontal margin from EdgeInsets
+    final horizontalMargin = widget.margin.left + widget.margin.right;
+    _buttonWidth = MediaQuery.of(context).size.width - horizontalMargin;
     _maxThumbPosition = _buttonWidth - widget.thumbSize - greenFillThumbSpacing;
   }
 
@@ -170,8 +177,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     return Container(
       key: const ValueKey('not-confirmed'),
       height: widget.trackHeight,
-      margin:
-          const EdgeInsets.symmetric(horizontal: buttonHorizontalMargin / 2),
+      margin: widget.margin, // Use the customizable margin
       child: Stack(
         children: [
           // === Layer 1: Background track (static gray bar behind everything) ===
