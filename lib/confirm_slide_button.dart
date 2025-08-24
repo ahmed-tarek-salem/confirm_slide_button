@@ -2,123 +2,259 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-/// A performance-optimized custom slide-to-confirm button widget.
+/// A highly customizable slide-to-confirm button widget with smooth animations.
 ///
-/// The user slides a thumb from left to right to confirm an action.
-/// While sliding, the track fills with [fillColor] behind the thumb.
-/// When the thumb reaches the end, [onConfirmed] is triggered.
+/// This widget provides an intuitive slide-to-confirm interaction where users
+/// must drag a thumb from left to right to complete an action. The button
+/// includes visual feedback through progress filling, text transitions, and
+/// optional shimmer animations.
+///
+/// The widget is performance-optimized using [ValueNotifier] and separated
+/// render objects to minimize unnecessary rebuilds during drag operations.
+///
+/// Example usage:
+/// ```dart
+/// ConfirmSlideButton(
+///   onConfirmed: () => print('Action confirmed!'),
+///   initialText: 'Slide to confirm',
+///   confirmingText: 'Keep sliding...',
+///   completedText: 'Confirmed!',
+/// )
+/// ```
 class ConfirmSlideButton extends StatefulWidget {
-  /// Callback executed when the slide is completed.
+  // === Core Functionality ===
+
+  /// Callback function executed when the slide action is completed.
+  ///
+  /// This function is called when the user successfully slides the thumb
+  /// to the end of the track and releases it.
   final VoidCallback onConfirmed;
 
-  /// Total height of the track (background area).
-  /// Must be greater than or equal to [thumbSize].
-  /// The differnce between [trackHeight] and [thumbSize] determines the vertical border space.
+  // === Text Configuration ===
+
+  /// Text displayed when the button is in its initial state.
   ///
-  /// Defaults to 60.
+  /// This text appears before the user starts interacting with the button
+  /// and typically contains instructions like "Slide to confirm".
+  final String initialText;
+
+  /// Text displayed while the user is actively sliding the thumb.
+  ///
+  /// This text provides feedback during the sliding action and might
+  /// encourage continuation like "Keep sliding..." or "Release to confirm".
+  final String confirmingText;
+
+  /// Text displayed after the action has been successfully confirmed.
+  ///
+  /// This text appears in the completed state and typically indicates
+  /// success like "Confirmed!" or "Done!".
+  final String completedText;
+
+  /// Text style for the initial state text.
+  ///
+  /// If null, a default style will be applied. This style affects
+  /// the appearance of [initialText].
+  final TextStyle? initialTextStyle;
+
+  /// Text style for the confirming state text.
+  ///
+  /// If null, a default style will be applied. This style affects
+  /// the appearance of [confirmingText] during the sliding action.
+  final TextStyle? confirmingTextStyle;
+
+  /// Text style for the completed state text.
+  ///
+  /// If null, a default style will be applied. This style affects
+  /// the appearance of [completedText] after confirmation.
+  final TextStyle? completedTextStyle;
+
+  // === Layout & Sizing ===
+
+  /// Total height of the slide button track.
+  ///
+  /// This defines the overall height of the button. Must be greater than
+  /// or equal to [thumbDiameter]. The difference creates vertical padding
+  /// around the thumb.
+  ///
+  /// Defaults to 60.0.
   final double trackHeight;
 
-  /// Factor to shrink the track height when the user confirms.
-  /// Must be between 0 and 1.
+  /// Diameter of the circular draggable thumb.
   ///
-  /// Defaults to 0.8.
-  final double shrinkedTrackHeightFactor;
-
-  /// Size (diameter) of the draggable thumb circle.
+  /// This determines the size of the circular element that users drag
+  /// across the track. Must be less than or equal to [trackHeight].
   ///
-  /// Defaults to 50.
-  final double thumbSize;
+  /// Defaults to 50.0.
+  final double thumbDiameter;
 
-  /// Color of the draggable thumb.
-  final Color thumbColor;
-
-  /// Color of the progress fill.
-  final Color fillColor;
-
-  /// Margin around the entire button.
+  /// External margin applied around the entire button.
   ///
-  /// This controls the spacing around the slide button.
-  /// Only horizontal margins (left/right) affect the button's interactive width.
-  /// Vertical margins only add spacing above/below the button.
+  /// This controls spacing around the slide button. Horizontal margins
+  /// affect the button's interactive width, while vertical margins only
+  /// add spacing above and below.
   ///
-  /// Defaults to EdgeInsets.symmetric(horizontal: 20).
+  /// Defaults to EdgeInsets.symmetric(horizontal: 20.0).
   final EdgeInsets margin;
 
-  /// Horizontal border width between the thumb and the progress fill.
+  /// Horizontal border width between the thumb and track edges.
+  ///
+  /// This creates visual spacing between the thumb and the track boundary,
+  /// preventing the thumb from touching the edges. Must be non-negative.
   ///
   /// Defaults to 4.0.
-  final double thumbHorizontalBorderWidth;
+  final double horizontalPadding;
 
-  /// Text displayed before confirmation (when the user hasn't started sliding).
-  final String beforeConfirmText;
+  // === Colors & Appearance ===
 
-  /// Text displayed during confirmation (when the user is sliding).
-  final String duringConfirmText;
-
-  /// Text displayed after confirmation (when the user has confirmed).
-  final String afterConfirmText;
-
-  final TextStyle? beforeConfirmTextStyle;
-  final TextStyle? duringConfirmTextStyle;
-  final TextStyle? afterConfirmTextStyle;
-
-  final Color baseShimmerColor;
-  final Color highlightShimmerColor;
-
-  final bool hasShimmerAnimation;
-
-  final Color thumbContainerColor;
-
+  /// Background color of the slide track in its initial state.
+  ///
+  /// This is the base color of the button before any interaction.
+  /// Defaults to Color(0xff2f2c32) (dark gray).
   final Color trackBackgroundColor;
 
-  final double buttonWidthShrinkageFactor;
-  final double thumbSizeShrinkageFactor;
-
-  /// Optional widgets to display inside the thumb before and after confirmation.
-  /// If not provided, default icons will be used.
+  /// Color of the progress fill that follows the thumb.
   ///
-  /// The transition between the widgets will be animated.
-  final Widget startThumbWidget;
-  final Widget endThumbWidget;
+  /// As the user drags the thumb, this color fills the track behind it,
+  /// providing visual feedback of progress.
+  /// Defaults to Colors.greenAccent.
+  final Color progressFillColor;
 
+  /// Background color of the draggable thumb.
+  ///
+  /// This is the base color of the circular thumb element.
+  /// Defaults to Colors.black.
+  final Color thumbBackgroundColor;
+
+  // === Animation & Effects ===
+
+  /// Whether to enable shimmer animation on the initial text.
+  ///
+  /// When true, the [initialText] displays a subtle shimmer effect
+  /// to attract user attention. When false, static text is shown.
+  ///
+  /// Defaults to true.
+  final bool enableShimmerAnimation;
+
+  /// Base color for the shimmer animation effect.
+  ///
+  /// This is the primary color used in the shimmer gradient.
+  /// Only applies when [enableShimmerAnimation] is true.
+  /// Defaults to Colors.grey.
+  final Color shimmerBaseColor;
+
+  /// Highlight color for the shimmer animation effect.
+  ///
+  /// This creates the moving highlight in the shimmer gradient.
+  /// Only applies when [enableShimmerAnimation] is true.
+  /// Defaults to Colors.white.
+  final Color shimmerHighlightColor;
+
+  /// Factor by which the track height shrinks after confirmation.
+  ///
+  /// This creates a satisfying shrink animation when the action is completed.
+  /// Must be between 0.0 and 1.0, where 1.0 means no shrinking.
+  ///
+  /// Defaults to 0.8 (20% height reduction).
+  final double completedHeightFactor;
+
+  /// Factor by which the button width shrinks after confirmation.
+  ///
+  /// This creates a horizontal shrink animation alongside the height reduction.
+  /// Must be between 0.0 and 1.0, where 1.0 means no shrinking.
+  ///
+  /// Defaults to 0.6 (40% width reduction).
+  final double completedWidthFactor;
+
+  /// Factor by which the thumb size shrinks after confirmation.
+  ///
+  /// This creates a size reduction animation for the completed thumb.
+  /// Must be between 0.0 and 1.0, where 1.0 means no shrinking.
+  ///
+  /// Defaults to 0.5 (50% size reduction).
+  final double completedThumbSizeFactor;
+
+  // === Thumb Icons/Widgets ===
+
+  /// Widget displayed inside the thumb in its initial state.
+  ///
+  /// This typically shows an arrow or similar icon indicating the slide direction.
+  /// The widget should be appropriately sized for the thumb diameter.
+  ///
+  /// Defaults to a forward arrow icon.
+  final Widget initialThumbChild;
+
+  /// Widget displayed inside the thumb after confirmation.
+  ///
+  /// This typically shows a checkmark or similar success indicator.
+  /// The transition between [initialThumbChild] and this widget is animated.
+  ///
+  /// Defaults to a checkmark icon.
+  final Widget completedThumbChild;
+
+  /// Creates a slide-to-confirm button widget.
+  ///
+  /// The [onConfirmed] callback is required and will be called when the user
+  /// successfully completes the slide gesture. The [initialText], [confirmingText],
+  /// and [completedText] parameters define the text shown in different states.
   const ConfirmSlideButton({
     super.key,
+    // Core functionality (required)
     required this.onConfirmed,
-    required this.beforeConfirmText,
-    required this.duringConfirmText,
-    required this.afterConfirmText,
-    this.beforeConfirmTextStyle,
-    this.duringConfirmTextStyle,
-    this.afterConfirmTextStyle,
-    this.trackHeight = 60,
-    this.shrinkedTrackHeightFactor = 0.8,
-    this.thumbSize = 50,
-    this.fillColor = Colors.greenAccent,
-    this.margin = const EdgeInsets.symmetric(horizontal: 20),
-    this.thumbHorizontalBorderWidth = 4.0,
-    this.baseShimmerColor = Colors.grey,
-    this.highlightShimmerColor = Colors.white,
-    this.hasShimmerAnimation = true,
-    this.thumbContainerColor = Colors.black,
+    // Text content
+    this.initialText = 'Slide to confirm',
+    this.confirmingText = 'Confirming...',
+    this.completedText = 'Confirmed!',
+    // Text styling
+    this.initialTextStyle,
+    this.confirmingTextStyle,
+    this.completedTextStyle,
+    // Layout & sizing
+    this.trackHeight = 60.0,
+    this.thumbDiameter = 50.0,
+    this.margin = const EdgeInsets.symmetric(horizontal: 20.0),
+    this.horizontalPadding = 4.0,
+    // Colors & appearance
     this.trackBackgroundColor = const Color(0xff2f2c32),
-    this.startThumbWidget = const Icon(Icons.arrow_forward_ios_rounded,
-        color: Colors.white, size: 20),
-    this.endThumbWidget =
-        const Icon(Icons.check_rounded, color: Colors.white, size: 24),
-    this.thumbColor = Colors.black,
-    this.buttonWidthShrinkageFactor = 0.6,
-    this.thumbSizeShrinkageFactor = 0.5,
-  })  : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
-            'shrinkedTrackHeightFactor must be between 0 and 1'),
-        assert(thumbHorizontalBorderWidth >= 0,
-            'borderSpace must be non-negative'),
-        assert(trackHeight >= thumbSize,
-            'trackHeight must be greater than or equal to thumbSize'),
+    this.progressFillColor = Colors.greenAccent,
+    this.thumbBackgroundColor = Colors.black,
+    // Animation & effects
+    this.enableShimmerAnimation = true,
+    this.shimmerBaseColor = Colors.grey,
+    this.shimmerHighlightColor = Colors.white,
+    this.completedHeightFactor = 0.8,
+    this.completedWidthFactor = 0.6,
+    this.completedThumbSizeFactor = 0.5,
+    // Thumb content
+    this.initialThumbChild = const Icon(
+      Icons.arrow_forward_ios_rounded,
+      color: Colors.white,
+      size: 20,
+    ),
+    this.completedThumbChild = const Icon(
+      Icons.check_rounded,
+      color: Colors.white,
+      size: 24,
+    ),
+  })  : assert(
+          completedHeightFactor > 0 && completedHeightFactor <= 1,
+          'completedHeightFactor must be between 0.0 and 1.0',
+        ),
         assert(
-            buttonWidthShrinkageFactor >= 0 && buttonWidthShrinkageFactor <= 1,
-            'buttonWidthShrinkageFactor must be between 0 and 1'),
-        assert(thumbSizeShrinkageFactor >= 0 && thumbSizeShrinkageFactor <= 1,
-            'thumbSizeShrinkageFactor must be between 0 and 1');
+          completedWidthFactor > 0 && completedWidthFactor <= 1,
+          'completedWidthFactor must be between 0.0 and 1.0',
+        ),
+        assert(
+          completedThumbSizeFactor > 0 && completedThumbSizeFactor <= 1,
+          'completedThumbSizeFactor must be between 0.0 and 1.0',
+        ),
+        assert(
+          horizontalPadding >= 0,
+          'horizontalPadding must be non-negative',
+        ),
+        assert(
+          trackHeight >= thumbDiameter,
+          'trackHeight must be greater than or equal to thumbDiameter',
+        );
 
   @override
   State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
@@ -126,181 +262,213 @@ class ConfirmSlideButton extends StatefulWidget {
 
 class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     with SingleTickerProviderStateMixin {
-  /// Current horizontal position of the draggable thumb (0 = start).
-  final ValueNotifier<double> _dragPositionNotifier = ValueNotifier(0.0);
+  /// Notifies listeners of changes to the thumb's horizontal position.
+  ///
+  /// Value ranges from 0.0 (start position) to [_maxThumbPosition] (end position).
+  final ValueNotifier<double> _thumbPositionNotifier = ValueNotifier(0.0);
 
-  /// Whether the user has completed the slide action.
-  bool _confirmed = false;
-  bool _startTextAnimation = false;
+  /// Whether the slide action has been completed successfully.
+  bool _isConfirmed = false;
 
-  /// Animation controller for the thumb return animation
-  late final AnimationController _returnAnimationController;
-  late Animation<double> _returnAnimation;
+  /// Whether to start the text transition animation after confirmation.
+  bool _shouldAnimateCompletedText = false;
 
-  // Cached layout values
-  late final double _buttonWidth;
-  late final double _maxThumbPosition;
-  late final double confirmedButtonHeight;
+  /// Controls the thumb return animation when drag is released early.
+  late final AnimationController _thumbReturnController;
 
-  /// Maximum blur intensity applied when the thumb is in the middle.
-  static const double maxBlurSigma = 4.0;
+  /// Animation for smoothly returning the thumb to start position.
+  late Animation<double> _thumbReturnAnimation;
 
-  /// For left and right thumb border width
-  double get thumbBorderWidthDoubled => widget.thumbHorizontalBorderWidth * 2;
+  /// Cached total width available for the button (screen width minus margins).
+  late double _availableButtonWidth;
+
+  /// Cached maximum position the thumb can reach (accounts for thumb size and padding).
+  late double _maxThumbPosition;
+
+  /// Cached height of the button in its completed/shrunk state.
+  late double _completedButtonHeight;
+
+  /// Maximum blur intensity applied to the thumb during mid-slide.
+  ///
+  /// This creates a dynamic blur effect that's strongest when the thumb
+  /// is positioned in the middle of its travel path.
+  static const double _maxBlurIntensity = 4.0;
+
+  /// Total horizontal border space (left + right padding).
+  double get _totalHorizontalPadding => widget.horizontalPadding * 2;
 
   @override
   void initState() {
     super.initState();
 
-    confirmedButtonHeight =
-        widget.trackHeight * widget.shrinkedTrackHeightFactor;
-    _returnAnimationController = AnimationController(
-      duration: const Duration(seconds: 1),
+    // Pre-calculate the completed button height for animation
+    _completedButtonHeight = widget.trackHeight * widget.completedHeightFactor;
+
+    // Initialize the thumb return animation controller
+    _thumbReturnController = AnimationController(
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
-    _returnAnimation = Tween<double>(
+    // Set up the initial animation (will be reconfigured when needed)
+    _thumbReturnAnimation = Tween<double>(
       begin: 0.0,
       end: 0.0,
     ).animate(CurvedAnimation(
-      parent: _returnAnimationController,
+      parent: _thumbReturnController,
       curve: Curves.easeOutCubic,
     ));
 
-    _returnAnimation.addListener(() {
-      _dragPositionNotifier.value = _returnAnimation.value;
+    // Connect the animation to the thumb position notifier
+    _thumbReturnAnimation.addListener(() {
+      _thumbPositionNotifier.value = _thumbReturnAnimation.value;
     });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Cache expensive calculations - use the actual horizontal margin from EdgeInsets
-    final horizontalMargin = widget.margin.left + widget.margin.right;
-    _buttonWidth = MediaQuery.of(context).size.width - horizontalMargin;
+
+    // Cache expensive layout calculations
+    final totalHorizontalMargin = widget.margin.left + widget.margin.right;
+    _availableButtonWidth =
+        MediaQuery.of(context).size.width - totalHorizontalMargin;
     _maxThumbPosition =
-        _buttonWidth - widget.thumbSize - thumbBorderWidthDoubled;
+        _availableButtonWidth - widget.thumbDiameter - _totalHorizontalPadding;
   }
 
   @override
   void dispose() {
-    _returnAnimationController.dispose();
-    _dragPositionNotifier.dispose();
+    _thumbReturnController.dispose();
+    _thumbPositionNotifier.dispose();
     super.dispose();
   }
 
-  /// Animates the thumb back to the start position
-  void _animateThumbReturn() {
-    _returnAnimation = Tween<double>(
-      begin: _dragPositionNotifier.value,
+  /// Smoothly animates the thumb back to its starting position.
+  ///
+  /// This is called when the user releases the thumb before reaching
+  /// the end of the track, providing visual feedback that the action
+  /// was not completed.
+  void _animateThumbToStart() {
+    _thumbReturnAnimation = Tween<double>(
+      begin: _thumbPositionNotifier.value,
       end: 0.0,
     ).animate(CurvedAnimation(
-      parent: _returnAnimationController,
+      parent: _thumbReturnController,
       curve: Curves.easeOutCubic,
     ));
 
-    _returnAnimationController.reset();
-    _returnAnimationController.forward();
+    _thumbReturnController.reset();
+    _thumbReturnController.forward();
   }
 
-  void _onDragUpdate(double deltaX) {
+  /// Handles continuous drag updates from user input.
+  ///
+  /// [deltaX] represents the horizontal change in position since the last update.
+  /// The thumb position is clamped to valid bounds to prevent overflow.
+  void _handleDragUpdate(double deltaX) {
     // Stop any ongoing return animation when user starts dragging
-    if (_returnAnimationController.isAnimating) {
-      _returnAnimationController.stop();
+    if (_thumbReturnController.isAnimating) {
+      _thumbReturnController.stop();
     }
 
+    // Update position within valid bounds
     final newPosition =
-        (_dragPositionNotifier.value + deltaX).clamp(0.0, _maxThumbPosition);
-    _dragPositionNotifier.value = newPosition;
+        (_thumbPositionNotifier.value + deltaX).clamp(0.0, _maxThumbPosition);
+    _thumbPositionNotifier.value = newPosition;
   }
 
-  void _onDragEnd() {
-    // If the thumb has reached the end, trigger the confirmation callback
-    if (_dragPositionNotifier.value >= _maxThumbPosition) {
+  /// Handles the end of a drag gesture.
+  ///
+  /// If the thumb has reached the maximum position, the confirmation is triggered.
+  /// Otherwise, the thumb animates back to the start position.
+  void _handleDragEnd() {
+    if (_thumbPositionNotifier.value >= _maxThumbPosition) {
+      // Trigger confirmation
       setState(() {
-        _confirmed = true;
+        _isConfirmed = true;
         widget.onConfirmed();
       });
-      Future.delayed(const Duration(milliseconds: 100), () {
+
+      // Start text transition animation after a brief delay
+      Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) {
           setState(() {
-            _startTextAnimation = true;
+            _shouldAnimateCompletedText = true;
           });
         }
       });
-    }
-    // Otherwise, animate the thumb back to start position
-    else {
-      _animateThumbReturn();
+    } else {
+      // Return thumb to start position
+      _animateThumbToStart();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('not-confirmed'),
       height: widget.trackHeight,
-      margin: widget.margin, // Use the customizable margin
+      margin: widget.margin,
       child: Stack(
         children: [
-          // === Layer 1: Background track (static gray bar behind everything) ===
-          _BackgroundTrack(
-            confirmed: _confirmed,
-            buttonWidth: _buttonWidth,
-            confirmedButtonHeight: confirmedButtonHeight,
+          // Layer 1: Background track with completion animation
+          _TrackBackground(
+            isConfirmed: _isConfirmed,
+            availableWidth: _availableButtonWidth,
+            completedHeight: _completedButtonHeight,
             trackHeight: widget.trackHeight,
-            thumbSize: widget.thumbSize,
-            fillColor: widget.fillColor,
-            thumbContainerColor: widget.thumbContainerColor,
+            thumbDiameter: widget.thumbDiameter,
+            progressFillColor: widget.progressFillColor,
             trackBackgroundColor: widget.trackBackgroundColor,
-            endThumbWidget: widget.endThumbWidget,
-            buttonWidthShrinkageFactor: widget.buttonWidthShrinkageFactor,
-            thumbSizeShrinkageFactor: widget.thumbSizeShrinkageFactor,
+            thumbBackgroundColor: widget.thumbBackgroundColor,
+            completedThumbChild: widget.completedThumbChild,
+            completedWidthFactor: widget.completedWidthFactor,
+            completedThumbSizeFactor: widget.completedThumbSizeFactor,
           ),
 
-          // === Layer 2: Progress fill (dynamic progress area that grows as the thumb moves) ===
-          if (!_confirmed)
-            _ProgressFill(
-              dragPositionNotifier: _dragPositionNotifier,
-              thumbSize: widget.thumbSize,
-              fillColor: widget.fillColor,
-              thumbSpacing: thumbBorderWidthDoubled,
+          // Layer 2: Progress fill that follows the thumb
+          if (!_isConfirmed)
+            _ProgressFillIndicator(
+              thumbPositionNotifier: _thumbPositionNotifier,
+              thumbDiameter: widget.thumbDiameter,
+              progressFillColor: widget.progressFillColor,
+              totalPadding: _totalHorizontalPadding,
             ),
 
-          // === Layer 3: Center text (shimmer animation to draw user attention) ===
-          _CenterText(
-            buttonWidth: _buttonWidth,
-            dragPositionNotifier: _dragPositionNotifier,
-            confirmed: _confirmed,
-            startTextAnimation: _startTextAnimation,
+          // Layer 3: Text overlay with state transitions
+          _TextOverlay(
+            availableWidth: _availableButtonWidth,
+            thumbPositionNotifier: _thumbPositionNotifier,
+            isConfirmed: _isConfirmed,
+            shouldAnimateCompletedText: _shouldAnimateCompletedText,
             trackHeight: widget.trackHeight,
-            thumbSize: widget.thumbSize,
-            thumbSpacing: thumbBorderWidthDoubled,
-            thumbLeadingOffset: widget.thumbHorizontalBorderWidth,
-            beforeConfirmText: widget.beforeConfirmText,
-            duringConfirmText: widget.duringConfirmText,
-            afterConfirmText: widget.afterConfirmText,
-            afterConfirmTextStyle: widget.afterConfirmTextStyle,
-            beforeConfirmTextStyle: widget.beforeConfirmTextStyle,
-            duringConfirmTextStyle: widget.duringConfirmTextStyle,
-            baseShimmerColor: widget.baseShimmerColor,
-            highlightShimmerColor: widget.highlightShimmerColor,
-            hasShimmerAnimation: widget.hasShimmerAnimation,
+            thumbDiameter: widget.thumbDiameter,
+            totalPadding: _totalHorizontalPadding,
+            paddingOffset: widget.horizontalPadding,
+            initialText: widget.initialText,
+            confirmingText: widget.confirmingText,
+            completedText: widget.completedText,
+            initialTextStyle: widget.initialTextStyle,
+            confirmingTextStyle: widget.confirmingTextStyle,
+            completedTextStyle: widget.completedTextStyle,
+            enableShimmerAnimation: widget.enableShimmerAnimation,
+            shimmerBaseColor: widget.shimmerBaseColor,
+            shimmerHighlightColor: widget.shimmerHighlightColor,
           ),
 
-          // === Layer 4: Draggable thumb (user interaction handle) ===
-          if (!_confirmed)
+          // Layer 4: Interactive draggable thumb
+          if (!_isConfirmed)
             _DraggableThumb(
-              dragPositionNotifier: _dragPositionNotifier,
+              thumbPositionNotifier: _thumbPositionNotifier,
               maxThumbPosition: _maxThumbPosition,
-              onDragUpdate: _onDragUpdate,
-              onDragEnd: _onDragEnd,
+              onDragUpdate: _handleDragUpdate,
+              onDragEnd: _handleDragEnd,
               trackHeight: widget.trackHeight,
-              thumbSize: widget.thumbSize,
-              thumbBorderWidth: widget.thumbHorizontalBorderWidth,
-              endThumbWidget: widget.endThumbWidget,
-              startThumbWidget: widget.startThumbWidget,
-              thumbColor: widget.thumbColor,
+              thumbDiameter: widget.thumbDiameter,
+              horizontalPadding: widget.horizontalPadding,
+              thumbBackgroundColor: widget.thumbBackgroundColor,
+              initialThumbChild: widget.initialThumbChild,
+              completedThumbChild: widget.completedThumbChild,
             ),
         ],
       ),
@@ -308,63 +476,91 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   }
 }
 
-/// Separated draggable thumb widget for performance optimization
+/// Renders the draggable thumb with gesture handling and visual effects.
+///
+/// This widget is separated for performance optimization, rebuilding only
+/// when the thumb position changes during drag operations.
 class _DraggableThumb extends StatelessWidget {
-  final ValueNotifier<double> dragPositionNotifier;
+  /// Notifies of changes to the thumb's horizontal position.
+  final ValueNotifier<double> thumbPositionNotifier;
+
+  /// Maximum horizontal position the thumb can reach.
   final double maxThumbPosition;
+
+  /// Callback for handling drag update events.
   final Function(double) onDragUpdate;
+
+  /// Callback for handling drag end events.
   final VoidCallback onDragEnd;
+
+  /// Total height of the track container.
   final double trackHeight;
-  final double thumbSize;
-  final double thumbBorderWidth;
-  final Widget startThumbWidget;
-  final Widget endThumbWidget;
-  final Color thumbColor;
+
+  /// Diameter of the circular thumb.
+  final double thumbDiameter;
+
+  /// Horizontal padding from track edges.
+  final double horizontalPadding;
+
+  /// Background color of the thumb circle.
+  final Color thumbBackgroundColor;
+
+  /// Widget displayed inside the thumb initially.
+  final Widget initialThumbChild;
+
+  /// Widget displayed inside the thumb when nearly complete.
+  final Widget completedThumbChild;
 
   const _DraggableThumb({
-    required this.dragPositionNotifier,
+    required this.thumbPositionNotifier,
     required this.maxThumbPosition,
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.trackHeight,
-    required this.thumbSize,
-    required this.thumbBorderWidth,
-    required this.startThumbWidget,
-    required this.endThumbWidget,
-    required this.thumbColor,
+    required this.thumbDiameter,
+    required this.horizontalPadding,
+    required this.thumbBackgroundColor,
+    required this.initialThumbChild,
+    required this.completedThumbChild,
   });
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<double>(
-      valueListenable: dragPositionNotifier,
-      builder: (context, dragPosition, child) {
-        final double progress =
-            (dragPosition / maxThumbPosition).clamp(0.0, 1.0);
+      valueListenable: thumbPositionNotifier,
+      builder: (context, thumbPosition, child) {
+        // Calculate progress ratio (0.0 to 1.0)
+        final double progressRatio =
+            (thumbPosition / maxThumbPosition).clamp(0.0, 1.0);
 
-        // Calculate blur value directly using the quadratic formula
-        final double blurValue = _ConfirmSlideButtonState.maxBlurSigma *
-            (4 * (progress - (progress * progress)));
+        // Apply quadratic blur effect (strongest in middle of travel)
+        final double blurIntensity =
+            _ConfirmSlideButtonState._maxBlurIntensity *
+                (4 * (progressRatio - (progressRatio * progressRatio)));
 
         return Positioned(
-          left: dragPosition + thumbBorderWidth,
-          top: (trackHeight - thumbSize) / 2,
+          left: thumbPosition + horizontalPadding,
+          top: (trackHeight - thumbDiameter) / 2,
           child: GestureDetector(
             onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
             onHorizontalDragEnd: (_) => onDragEnd(),
             child: Container(
-              width: thumbSize,
-              height: thumbSize,
+              width: thumbDiameter,
+              height: thumbDiameter,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: thumbColor,
+                color: thumbBackgroundColor,
               ),
               child: ImageFiltered(
-                imageFilter:
-                    ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
+                imageFilter: ImageFilter.blur(
+                  sigmaX: blurIntensity,
+                  sigmaY: blurIntensity,
+                ),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  child: progress < 0.5 ? startThumbWidget : endThumbWidget,
+                  child: progressRatio < 0.5
+                      ? initialThumbChild
+                      : completedThumbChild,
                 ),
               ),
             ),
@@ -375,32 +571,56 @@ class _DraggableThumb extends StatelessWidget {
   }
 }
 
-/// Background track widget - only rebuilds when confirmation state changes
-class _BackgroundTrack extends StatelessWidget {
-  final bool confirmed;
-  final double buttonWidth;
-  final double confirmedButtonHeight;
-  final double trackHeight;
-  final double thumbSize;
-  final Color fillColor;
-  final Color thumbContainerColor;
-  final Color trackBackgroundColor;
-  final Widget endThumbWidget;
-  final double buttonWidthShrinkageFactor;
-  final double thumbSizeShrinkageFactor;
+/// Renders the background track with completion state animations.
+///
+/// This widget handles the visual transformation that occurs when the
+/// slide action is completed, including size changes and color transitions.
+class _TrackBackground extends StatelessWidget {
+  /// Whether the slide action has been completed.
+  final bool isConfirmed;
 
-  const _BackgroundTrack({
-    required this.confirmed,
-    required this.buttonWidth,
-    required this.confirmedButtonHeight,
+  /// Total available width for the button.
+  final double availableWidth;
+
+  /// Height of the track in its completed state.
+  final double completedHeight;
+
+  /// Height of the track in its normal state.
+  final double trackHeight;
+
+  /// Diameter of the thumb element.
+  final double thumbDiameter;
+
+  /// Color for the progress fill and completed background.
+  final Color progressFillColor;
+
+  /// Background color of the track in its initial state.
+  final Color trackBackgroundColor;
+
+  /// Background color of the thumb container.
+  final Color thumbBackgroundColor;
+
+  /// Widget to display inside the completed thumb.
+  final Widget completedThumbChild;
+
+  /// Factor by which width shrinks after completion.
+  final double completedWidthFactor;
+
+  /// Factor by which thumb size shrinks after completion.
+  final double completedThumbSizeFactor;
+
+  const _TrackBackground({
+    required this.isConfirmed,
+    required this.availableWidth,
+    required this.completedHeight,
     required this.trackHeight,
-    required this.thumbSize,
-    required this.fillColor,
-    required this.thumbContainerColor,
+    required this.thumbDiameter,
+    required this.progressFillColor,
     required this.trackBackgroundColor,
-    required this.endThumbWidget,
-    required this.buttonWidthShrinkageFactor,
-    required this.thumbSizeShrinkageFactor,
+    required this.completedThumbChild,
+    required this.completedWidthFactor,
+    required this.completedThumbSizeFactor,
+    required this.thumbBackgroundColor,
   });
 
   @override
@@ -408,39 +628,38 @@ class _BackgroundTrack extends StatelessWidget {
     return Center(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 600),
-        height: confirmed ? confirmedButtonHeight : trackHeight,
-        width:
-            confirmed ? buttonWidth * buttonWidthShrinkageFactor : buttonWidth,
+        height: isConfirmed ? completedHeight : trackHeight,
+        width: isConfirmed
+            ? availableWidth * completedWidthFactor
+            : availableWidth,
         child: Container(
           decoration: BoxDecoration(
-            color: confirmed ? fillColor : trackBackgroundColor,
+            color: isConfirmed ? progressFillColor : trackBackgroundColor,
             borderRadius: BorderRadius.circular(50),
           ),
-          child:
-              // Another thumb container which will be animated to shrink
-              // when the user confirms the action.
-              Opacity(
-            opacity: !confirmed ? 0.0 : 1.0,
+          child: Opacity(
+            opacity: isConfirmed ? 1.0 : 0.0,
             child: Align(
               alignment: Alignment.centerRight,
               child: AnimatedContainer(
-                margin: EdgeInsets.symmetric(horizontal: confirmed ? 10 : 0),
+                margin: EdgeInsets.symmetric(horizontal: isConfirmed ? 10 : 0),
                 duration: const Duration(milliseconds: 600),
-                width: confirmed
-                    ? thumbSize * thumbSizeShrinkageFactor
-                    : thumbSize,
-                height: confirmed
-                    ? thumbSize * thumbSizeShrinkageFactor
-                    : thumbSize,
+                width: isConfirmed
+                    ? thumbDiameter * completedThumbSizeFactor
+                    : thumbDiameter,
+                height: isConfirmed
+                    ? thumbDiameter * completedThumbSizeFactor
+                    : thumbDiameter,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: thumbContainerColor,
+                  color: thumbBackgroundColor,
                 ),
                 child: Center(
                   child: AnimatedScale(
-                      duration: const Duration(milliseconds: 600),
-                      scale: confirmed ? thumbSizeShrinkageFactor : 1.0,
-                      child: endThumbWidget),
+                    duration: const Duration(milliseconds: 600),
+                    scale: isConfirmed ? completedThumbSizeFactor : 1.0,
+                    child: completedThumbChild,
+                  ),
                 ),
               ),
             ),
@@ -451,30 +670,40 @@ class _BackgroundTrack extends StatelessWidget {
   }
 }
 
-/// Green fill widget - only rebuilds when drag position changes
-class _ProgressFill extends StatelessWidget {
-  final ValueNotifier<double> dragPositionNotifier;
-  final double thumbSize;
-  final Color fillColor;
-  final double thumbSpacing;
+/// Renders the progress fill that follows the thumb during drag operations.
+///
+/// This provides immediate visual feedback showing how much of the slide
+/// action has been completed.
+class _ProgressFillIndicator extends StatelessWidget {
+  /// Notifies of changes to the thumb position.
+  final ValueNotifier<double> thumbPositionNotifier;
 
-  const _ProgressFill({
-    required this.dragPositionNotifier,
-    required this.thumbSize,
-    required this.fillColor,
-    required this.thumbSpacing,
+  /// Diameter of the thumb element.
+  final double thumbDiameter;
+
+  /// Color of the progress fill.
+  final Color progressFillColor;
+
+  /// Total horizontal padding (left + right).
+  final double totalPadding;
+
+  const _ProgressFillIndicator({
+    required this.thumbPositionNotifier,
+    required this.thumbDiameter,
+    required this.progressFillColor,
+    required this.totalPadding,
   });
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<double>(
-      valueListenable: dragPositionNotifier,
-      builder: (context, dragPosition, child) {
+      valueListenable: thumbPositionNotifier,
+      builder: (context, thumbPosition, child) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(50),
           child: Container(
-            width: dragPosition + thumbSize + thumbSpacing,
-            color: fillColor,
+            width: thumbPosition + thumbDiameter + totalPadding,
+            color: progressFillColor,
           ),
         );
       },
@@ -482,84 +711,108 @@ class _ProgressFill extends StatelessWidget {
   }
 }
 
-/// Center text widget with optimized rebuilds
-class _CenterText extends StatelessWidget {
-  final double buttonWidth;
-  final ValueNotifier<double> dragPositionNotifier;
-  final bool confirmed;
-  final bool startTextAnimation;
-  final double trackHeight;
-  final double thumbSize;
-  final double thumbSpacing;
-  final double thumbLeadingOffset;
-  final String beforeConfirmText;
-  final String duringConfirmText;
-  final String afterConfirmText;
-  final TextStyle? beforeConfirmTextStyle;
-  final TextStyle? duringConfirmTextStyle;
-  final TextStyle? afterConfirmTextStyle;
-  final Color baseShimmerColor;
-  final Color highlightShimmerColor;
-  final bool hasShimmerAnimation;
+/// Manages the text overlay with state-based content and animations.
+///
+/// This widget handles the complex text rendering logic, including
+/// clipping regions, shimmer effects, and state transitions.
+class _TextOverlay extends StatelessWidget {
+  /// Total available width for text rendering.
+  final double availableWidth;
 
-  const _CenterText({
-    required this.buttonWidth,
-    required this.dragPositionNotifier,
-    required this.confirmed,
-    required this.startTextAnimation,
+  /// Notifies of thumb position changes.
+  final ValueNotifier<double> thumbPositionNotifier;
+
+  /// Whether the action has been confirmed.
+  final bool isConfirmed;
+
+  /// Whether to show the completed text animation.
+  final bool shouldAnimateCompletedText;
+
+  /// Height of the track container.
+  final double trackHeight;
+
+  /// Diameter of the thumb element.
+  final double thumbDiameter;
+
+  /// Total horizontal padding applied.
+  final double totalPadding;
+
+  /// Single-side padding offset for positioning.
+  final double paddingOffset;
+
+  // Text content
+  final String initialText;
+  final String confirmingText;
+  final String completedText;
+
+  // Text styling
+  final TextStyle? initialTextStyle;
+  final TextStyle? confirmingTextStyle;
+  final TextStyle? completedTextStyle;
+
+  // Shimmer configuration
+  final bool enableShimmerAnimation;
+  final Color shimmerBaseColor;
+  final Color shimmerHighlightColor;
+
+  const _TextOverlay({
+    required this.availableWidth,
+    required this.thumbPositionNotifier,
+    required this.isConfirmed,
+    required this.shouldAnimateCompletedText,
     required this.trackHeight,
-    required this.thumbSize,
-    required this.thumbSpacing,
-    required this.thumbLeadingOffset,
-    required this.beforeConfirmText,
-    required this.duringConfirmText,
-    required this.afterConfirmText,
-    required this.beforeConfirmTextStyle,
-    required this.duringConfirmTextStyle,
-    required this.afterConfirmTextStyle,
-    required this.baseShimmerColor,
-    required this.highlightShimmerColor,
-    required this.hasShimmerAnimation,
+    required this.thumbDiameter,
+    required this.totalPadding,
+    required this.paddingOffset,
+    required this.initialText,
+    required this.confirmingText,
+    required this.completedText,
+    required this.initialTextStyle,
+    required this.confirmingTextStyle,
+    required this.completedTextStyle,
+    required this.enableShimmerAnimation,
+    required this.shimmerBaseColor,
+    required this.shimmerHighlightColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: buttonWidth,
+      width: availableWidth,
       height: trackHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Gray shimmer text (right side only) - wrapped in RepaintBoundary for performance
+          // Shimmer text in unfilled region (right side)
           ValueListenableBuilder<double>(
-            valueListenable: dragPositionNotifier,
-            builder: (context, dragPosition, child) {
+            valueListenable: thumbPositionNotifier,
+            builder: (context, thumbPosition, child) {
               return ClipRect(
-                clipper: _HorizontalClipper(
-                  left: dragPosition + thumbSize + thumbSpacing,
-                  right: buttonWidth,
+                clipper: _HorizontalRegionClipper(
+                  leftBound: thumbPosition + thumbDiameter + totalPadding,
+                  rightBound: availableWidth,
                 ),
                 child: RepaintBoundary(
                   child: Center(
-                    child: hasShimmerAnimation
+                    child: enableShimmerAnimation
                         ? Shimmer(
                             period: const Duration(seconds: 3),
                             gradient: LinearGradient(
                               colors: [
-                                baseShimmerColor,
-                                highlightShimmerColor,
-                                baseShimmerColor,
+                                shimmerBaseColor,
+                                shimmerHighlightColor,
+                                shimmerBaseColor,
                               ],
-                              stops: [0.45, 0.50, 0.55],
+                              stops: const [0.45, 0.50, 0.55],
                             ),
                             child: Text(
-                              beforeConfirmText,
-                              style: beforeConfirmTextStyle,
+                              initialText,
+                              style: initialTextStyle,
                             ),
                           )
                         : Text(
-                            beforeConfirmText,
-                            style: beforeConfirmTextStyle,
+                            initialText,
+                            style: initialTextStyle,
                           ),
                   ),
                 ),
@@ -567,30 +820,30 @@ class _CenterText extends StatelessWidget {
             },
           ),
 
-          // Text in the fill area (left side only)
+          // Text in filled region (left side)
           ValueListenableBuilder<double>(
-            valueListenable: dragPositionNotifier,
-            builder: (context, dragPosition, child) {
-              final double fillWidth = dragPosition + thumbLeadingOffset;
+            valueListenable: thumbPositionNotifier,
+            builder: (context, thumbPosition, child) {
+              final double fillWidth = thumbPosition + paddingOffset;
 
               return ClipRect(
-                clipper: _HorizontalClipper(
-                  left: 0,
-                  right: fillWidth,
+                clipper: _HorizontalRegionClipper(
+                  leftBound: 0,
+                  rightBound: fillWidth,
                 ),
                 child: Center(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: startTextAnimation
+                    duration: const Duration(milliseconds: 300),
+                    child: shouldAnimateCompletedText
                         ? Text(
-                            afterConfirmText,
-                            key: ValueKey("after-confirm"),
-                            style: afterConfirmTextStyle,
+                            completedText,
+                            key: const ValueKey("completed-text"),
+                            style: completedTextStyle,
                           )
                         : Text(
-                            duringConfirmText,
-                            key: ValueKey("during-confirm"),
-                            style: duringConfirmTextStyle,
+                            confirmingText,
+                            key: const ValueKey("confirming-text"),
+                            style: confirmingTextStyle,
                           ),
                   ),
                 ),
@@ -603,22 +856,32 @@ class _CenterText extends StatelessWidget {
   }
 }
 
-/// Custom clipper for horizontal text clipping
-class _HorizontalClipper extends CustomClipper<Rect> {
-  final double left;
-  final double right;
+/// Custom clipper for creating horizontal text clipping regions.
+///
+/// This clipper is used to create the effect where different text appears
+/// in the filled vs unfilled portions of the slide button.
+class _HorizontalRegionClipper extends CustomClipper<Rect> {
+  /// Left boundary of the clipping region.
+  final double leftBound;
 
-  const _HorizontalClipper({required this.left, required this.right});
+  /// Right boundary of the clipping region.
+  final double rightBound;
+
+  const _HorizontalRegionClipper({
+    required this.leftBound,
+    required this.rightBound,
+  });
 
   @override
   Rect getClip(Size size) {
-    final l = left.clamp(0.0, size.width);
-    final r = right.clamp(0.0, size.width);
-    return Rect.fromLTRB(l, 0, r, size.height);
+    final left = leftBound.clamp(0.0, size.width);
+    final right = rightBound.clamp(0.0, size.width);
+    return Rect.fromLTRB(left, 0, right, size.height);
   }
 
   @override
-  bool shouldReclip(covariant _HorizontalClipper oldClipper) {
-    return left != oldClipper.left || right != oldClipper.right;
+  bool shouldReclip(covariant _HorizontalRegionClipper oldClipper) {
+    return leftBound != oldClipper.leftBound ||
+        rightBound != oldClipper.rightBound;
   }
 }

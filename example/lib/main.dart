@@ -35,24 +35,7 @@ class _MyAppState extends State<MyApp> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ConfirmSlideButton(
-                beforeConfirmText: "Slide to Confirm",
-                duringConfirmText: "Confirming...",
-                afterConfirmText: "Success!",
-                beforeConfirmTextStyle: TextStyle(color: Colors.white),
-                fillColor: const Color(0xff4ddf69),
-                duringConfirmTextStyle:
-                    TextStyle(fontSize: 12, color: Colors.white),
-                afterConfirmTextStyle:
-                    TextStyle(fontSize: 12, color: Colors.white),
-                baseShimmerColor: Colors.grey,
-                highlightShimmerColor: Colors.white,
-                hasShimmerAnimation: true,
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                trackHeight: 60,
-                thumbSize: 50,
-                thumbHorizontalBorderWidth: 4,
-                thumbContainerColor: Colors.black,
-                // trackBackgroundColor: Color(0xff2f2c32),
+                // Callback
                 onConfirmed: () {
                   setState(() {
                     isSuccess = true;
