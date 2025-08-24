@@ -11,7 +11,34 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Callback executed when the slide is completed.
   final VoidCallback onConfirmed;
 
-  const ConfirmSlideButton({super.key, required this.onConfirmed});
+  /// Total height of the track (background area).
+  ///
+  /// Defaults to 60.
+  final double trackHeight;
+
+  /// Factor to shrink the track height when the user confirms.
+  /// Must be between 0 and 1.
+  ///
+  /// Defaults to 0.8.
+  final double shrinkedTrackHeightFactor;
+
+  /// Size (diameter) of the draggable thumb circle.
+  ///
+  /// Defaults to 50.
+  final double thumbSize;
+
+  /// Color of the progress fill.
+  final Color fillColor;
+
+  const ConfirmSlideButton({
+    super.key,
+    required this.onConfirmed,
+    this.trackHeight = 60,
+    this.shrinkedTrackHeightFactor = 0.8,
+    this.thumbSize = 50,
+    this.fillColor = const Color(0xff4ddf69),
+  }) : assert(shrinkedTrackHeightFactor > 0 && shrinkedTrackHeightFactor <= 1,
+            'shrinkedTrackHeightFactor must be between 0 and 1');
 
   @override
   State<ConfirmSlideButton> createState() => _ConfirmSlideButtonState();
@@ -36,12 +63,6 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
 
   // === CONFIGURATION CONSTANTS ===
 
-  /// Total height of the track (background area).
-  static const double trackHeight = 60;
-
-  /// Size (diameter) of the draggable thumb circle.
-  static const double thumbSize = 50;
-
   /// Horizontal padding between the draggable thumb and the green fill.
   /// Creates visual separation so the thumb appears distinct from the filled area.
   static const double greenFillThumbSpacing = 8;
@@ -57,12 +78,14 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   /// Maximum blur intensity applied when the thumb is in the middle.
   static const double maxBlurSigma = 4.0;
 
-  static const double confirmedButtonHeight = trackHeight * 0.8;
+  late final double confirmedButtonHeight;
 
   @override
   void initState() {
     super.initState();
 
+    confirmedButtonHeight =
+        widget.trackHeight * widget.shrinkedTrackHeightFactor;
     _returnAnimationController = AnimationController(
       duration: const Duration(seconds: 1),
       vsync: this,
@@ -86,7 +109,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
     super.didChangeDependencies();
     // Cache expensive calculations
     _buttonWidth = MediaQuery.of(context).size.width - buttonHorizontalMargin;
-    _maxThumbPosition = _buttonWidth - thumbSize - greenFillThumbSpacing;
+    _maxThumbPosition = _buttonWidth - widget.thumbSize - greenFillThumbSpacing;
   }
 
   @override
@@ -146,7 +169,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('not-confirmed'),
-      height: trackHeight,
+      height: widget.trackHeight,
       margin:
           const EdgeInsets.symmetric(horizontal: buttonHorizontalMargin / 2),
       child: Stack(
@@ -155,12 +178,18 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
           _BackgroundTrack(
             confirmed: _confirmed,
             buttonWidth: _buttonWidth,
+            confirmedButtonHeight: confirmedButtonHeight,
+            trackHeight: widget.trackHeight,
+            thumbSize: widget.thumbSize,
+            fillColor: widget.fillColor,
           ),
 
-          // === Layer 2: Green fill (dynamic progress area that grows as the thumb moves) ===
+          // === Layer 2: Progress fill (dynamic progress area that grows as the thumb moves) ===
           if (!_confirmed)
-            _GreenFill(
+            _ProgressFill(
               dragPositionNotifier: _dragPositionNotifier,
+              thumbSize: widget.thumbSize,
+              fillColor: widget.fillColor,
             ),
 
           // === Layer 3: Center text (shimmer animation to draw user attention) ===
@@ -169,6 +198,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             dragPositionNotifier: _dragPositionNotifier,
             confirmed: _confirmed,
             startTextAnimation: _startTextAnimation,
+            trackHeight: widget.trackHeight,
+            thumbSize: widget.thumbSize,
           ),
 
           // === Layer 4: Draggable thumb (user interaction handle) ===
@@ -178,6 +209,8 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
               maxThumbPosition: _maxThumbPosition,
               onDragUpdate: _onDragUpdate,
               onDragEnd: _onDragEnd,
+              trackHeight: widget.trackHeight,
+              thumbSize: widget.thumbSize,
             ),
         ],
       ),
@@ -191,12 +224,16 @@ class _DraggableThumb extends StatelessWidget {
   final double maxThumbPosition;
   final Function(double) onDragUpdate;
   final VoidCallback onDragEnd;
+  final double trackHeight;
+  final double thumbSize;
 
   const _DraggableThumb({
     required this.dragPositionNotifier,
     required this.maxThumbPosition,
     required this.onDragUpdate,
     required this.onDragEnd,
+    required this.trackHeight,
+    required this.thumbSize,
   });
 
   @override
@@ -213,15 +250,13 @@ class _DraggableThumb extends StatelessWidget {
 
         return Positioned(
           left: dragPosition + _ConfirmSlideButtonState.thumbLeadingOffset,
-          top: (_ConfirmSlideButtonState.trackHeight -
-                  _ConfirmSlideButtonState.thumbSize) /
-              2,
+          top: (trackHeight - thumbSize) / 2,
           child: GestureDetector(
             onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
             onHorizontalDragEnd: (_) => onDragEnd(),
             child: Container(
-              width: _ConfirmSlideButtonState.thumbSize,
-              height: _ConfirmSlideButtonState.thumbSize,
+              width: thumbSize,
+              height: thumbSize,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color(0xff0b070a),
@@ -258,10 +293,18 @@ class _DraggableThumb extends StatelessWidget {
 class _BackgroundTrack extends StatelessWidget {
   final bool confirmed;
   final double buttonWidth;
+  final double confirmedButtonHeight;
+  final double trackHeight;
+  final double thumbSize;
+  final Color fillColor;
 
   const _BackgroundTrack({
     required this.confirmed,
     required this.buttonWidth,
+    required this.confirmedButtonHeight,
+    required this.trackHeight,
+    required this.thumbSize,
+    required this.fillColor,
   });
 
   @override
@@ -269,14 +312,11 @@ class _BackgroundTrack extends StatelessWidget {
     return Center(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 600),
-        height: confirmed
-            ? _ConfirmSlideButtonState.confirmedButtonHeight
-            : _ConfirmSlideButtonState.trackHeight,
+        height: confirmed ? confirmedButtonHeight : trackHeight,
         width: confirmed ? buttonWidth * 0.6 : buttonWidth,
         child: Container(
           decoration: BoxDecoration(
-            color:
-                confirmed ? const Color(0xff4ddf69) : const Color(0xff2f2c32),
+            color: confirmed ? fillColor : const Color(0xff2f2c32),
             borderRadius: BorderRadius.circular(50),
           ),
           child: Opacity(
@@ -286,12 +326,8 @@ class _BackgroundTrack extends StatelessWidget {
               child: AnimatedContainer(
                 margin: EdgeInsets.symmetric(horizontal: confirmed ? 10 : 0),
                 duration: const Duration(milliseconds: 600),
-                width: confirmed
-                    ? _ConfirmSlideButtonState.thumbSize * 0.5
-                    : _ConfirmSlideButtonState.thumbSize,
-                height: confirmed
-                    ? _ConfirmSlideButtonState.thumbSize * 0.5
-                    : _ConfirmSlideButtonState.thumbSize,
+                width: confirmed ? thumbSize * 0.5 : thumbSize,
+                height: confirmed ? thumbSize * 0.5 : thumbSize,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xff0b070a),
@@ -318,11 +354,15 @@ class _BackgroundTrack extends StatelessWidget {
 }
 
 /// Green fill widget - only rebuilds when drag position changes
-class _GreenFill extends StatelessWidget {
+class _ProgressFill extends StatelessWidget {
   final ValueNotifier<double> dragPositionNotifier;
+  final double thumbSize;
+  final Color fillColor;
 
-  const _GreenFill({
+  const _ProgressFill({
     required this.dragPositionNotifier,
+    required this.thumbSize,
+    required this.fillColor,
   });
 
   @override
@@ -334,9 +374,9 @@ class _GreenFill extends StatelessWidget {
           borderRadius: BorderRadius.circular(50),
           child: Container(
             width: dragPosition +
-                _ConfirmSlideButtonState.thumbSize +
+                thumbSize +
                 _ConfirmSlideButtonState.greenFillThumbSpacing,
-            color: const Color(0xff4ddf69),
+            color: fillColor,
           ),
         );
       },
@@ -350,19 +390,23 @@ class _CenterText extends StatelessWidget {
   final ValueNotifier<double> dragPositionNotifier;
   final bool confirmed;
   final bool startTextAnimation;
+  final double trackHeight;
+  final double thumbSize;
 
   const _CenterText({
     required this.buttonWidth,
     required this.dragPositionNotifier,
     required this.confirmed,
     required this.startTextAnimation,
+    required this.trackHeight,
+    required this.thumbSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: buttonWidth,
-      height: _ConfirmSlideButtonState.trackHeight,
+      height: trackHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -373,7 +417,7 @@ class _CenterText extends StatelessWidget {
               return ClipRect(
                 clipper: _HorizontalClipper(
                   left: dragPosition +
-                      _ConfirmSlideButtonState.thumbSize +
+                      thumbSize +
                       _ConfirmSlideButtonState.greenFillThumbSpacing,
                   right: buttonWidth,
                 ),
