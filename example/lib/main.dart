@@ -39,6 +39,14 @@ class _MyAppState extends State<MyApp> {
                 initialText: "Slide to Confirm",
                 confirmingText: "Confirming...",
                 completedText: "Success!",
+                loadingIndicator: SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xff2f2c32))),
+                ),
 
                 // Text styling
                 initialTextStyle: const TextStyle(color: Colors.white),
@@ -49,7 +57,7 @@ class _MyAppState extends State<MyApp> {
 
                 // Colors
                 progressFillColor: const Color(0xff4ddf69),
-                // trackBackgroundColor: Color(0xff2f2c32), // Uncomment if needed
+                trackBackgroundColor: Color(0xff2f2c32), // Uncomment if needed
 
                 // Shimmer animation
                 enableShimmerAnimation: true,
@@ -63,7 +71,8 @@ class _MyAppState extends State<MyApp> {
                 horizontalPadding: 4,
 
                 // Callback
-                onConfirmed: () {
+                onConfirmed: () async {
+                  await Future.delayed(const Duration(seconds: 2));
                   setState(() {
                     isSuccess = true;
                   });
