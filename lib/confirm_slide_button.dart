@@ -477,6 +477,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             enableShimmerAnimation: widget.enableShimmerAnimation,
             shimmerBaseColor: widget.shimmerBaseColor,
             shimmerHighlightColor: widget.shimmerHighlightColor,
+            loadingIndicator: widget.loadingIndicator,
           ),
 
           // Layer 4: Interactive draggable thumb
@@ -774,6 +775,7 @@ class _TextOverlay extends StatelessWidget {
   final String initialText;
   final String confirmingText;
   final String completedText;
+  final Widget loadingIndicator;
 
   // Text styling
   final TextStyle? initialTextStyle;
@@ -798,6 +800,7 @@ class _TextOverlay extends StatelessWidget {
     required this.initialText,
     required this.confirmingText,
     required this.completedText,
+    required this.loadingIndicator,
     required this.initialTextStyle,
     required this.confirmingTextStyle,
     required this.completedTextStyle,
@@ -866,15 +869,7 @@ class _TextOverlay extends StatelessWidget {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     child: isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                        ? loadingIndicator
                         : shouldAnimateCompletedText
                             ? Text(
                                 completedText,
