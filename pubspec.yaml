@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   shimmer: ^3.0.0
+  sprung: ^3.0.1
 
 dev_dependencies:
   flutter_test:

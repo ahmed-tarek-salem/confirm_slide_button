@@ -368,7 +368,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
       end: 0.0,
     ).animate(CurvedAnimation(
       parent: _thumbReturnController,
-      curve: Curves.easeOutCubic,
+      curve: Sprung.criticallyDamped,
     ));
 
     _thumbReturnController.reset();
