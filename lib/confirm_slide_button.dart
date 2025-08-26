@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sprung/sprung.dart';
 
 /// A highly customizable slide-to-confirm button widget with smooth animations.
 ///
@@ -27,8 +28,9 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Callback function executed when the slide action is completed.
   ///
   /// This function is called when the user successfully slides the thumb
-  /// to the end of the track and releases it.
-  final VoidCallback onConfirmed;
+  /// to the end of the track and releases it. It can be asynchronous
+  /// and the button will show a loading indicator while waiting.
+  final Future<void> Function() onConfirmed;
 
   // === Text Configuration ===
 
@@ -191,6 +193,13 @@ class ConfirmSlideButton extends StatefulWidget {
   /// Defaults to a checkmark icon.
   final Widget completedThumbChild;
 
+  /// Widget displayed while the action is loading.
+  ///
+  /// This widget is shown when the [onConfirmed] callback is called.
+  /// After the [onConfirmed] is done, the [completedText] is shown.
+  /// Defaults to a circular progress indicator.
+  final Widget loadingIndicator;
+
   /// Creates a slide-to-confirm button widget.
   ///
   /// The [onConfirmed] callback is required and will be called when the user
@@ -235,6 +244,7 @@ class ConfirmSlideButton extends StatefulWidget {
       color: Colors.white,
       size: 24,
     ),
+    this.loadingIndicator = const CircularProgressIndicator(),
   })  : assert(
           completedHeightFactor > 0 && completedHeightFactor <= 1,
           'completedHeightFactor must be between 0.0 and 1.0',
@@ -272,6 +282,9 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
 
   /// Whether to start the text transition animation after confirmation.
   bool _shouldAnimateCompletedText = false;
+
+  /// Whether the confirmation callback is currently executing.
+  bool _isLoading = false;
 
   /// Controls the thumb return animation when drag is released early.
   late final AnimationController _thumbReturnController;
@@ -382,22 +395,31 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
   ///
   /// If the thumb has reached the maximum position, the confirmation is triggered.
   /// Otherwise, the thumb animates back to the start position.
-  void _handleDragEnd() {
+  Future<void> _handleDragEnd() async {
     if (_thumbPositionNotifier.value >= _maxThumbPosition) {
-      // Trigger confirmation
+      // Set loading state
       setState(() {
-        _isConfirmed = true;
-        widget.onConfirmed();
+        _isLoading = true;
       });
 
-      // Start text transition animation after a brief delay
-      Future.delayed(const Duration(milliseconds: 150), () {
+      // Execute the confirmation callback
+      try {
+        await widget.onConfirmed();
         if (mounted) {
           setState(() {
+            _isLoading = false;
+            _isConfirmed = true;
             _shouldAnimateCompletedText = true;
           });
         }
-      });
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          _animateThumbToStart();
+        }
+      }
     } else {
       // Return thumb to start position
       _animateThumbToStart();
@@ -441,6 +463,7 @@ class _ConfirmSlideButtonState extends State<ConfirmSlideButton>
             thumbPositionNotifier: _thumbPositionNotifier,
             isConfirmed: _isConfirmed,
             shouldAnimateCompletedText: _shouldAnimateCompletedText,
+            isLoading: _isLoading,
             trackHeight: widget.trackHeight,
             thumbDiameter: widget.thumbDiameter,
             totalPadding: _totalHorizontalPadding,
@@ -729,6 +752,9 @@ class _TextOverlay extends StatelessWidget {
   /// Whether the action has been confirmed.
   final bool isConfirmed;
 
+  /// Whether the confirmation action is currently loading.
+  final bool isLoading;
+
   /// Whether to show the completed text animation.
   final bool shouldAnimateCompletedText;
 
@@ -764,6 +790,7 @@ class _TextOverlay extends StatelessWidget {
     required this.thumbPositionNotifier,
     required this.isConfirmed,
     required this.shouldAnimateCompletedText,
+    required this.isLoading,
     required this.trackHeight,
     required this.thumbDiameter,
     required this.totalPadding,
@@ -838,17 +865,27 @@ class _TextOverlay extends StatelessWidget {
                 child: Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child: shouldAnimateCompletedText
-                        ? Text(
-                            completedText,
-                            key: const ValueKey("completed-text"),
-                            style: completedTextStyle,
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
                           )
-                        : Text(
-                            confirmingText,
-                            key: const ValueKey("confirming-text"),
-                            style: confirmingTextStyle,
-                          ),
+                        : shouldAnimateCompletedText
+                            ? Text(
+                                completedText,
+                                key: const ValueKey("completed-text"),
+                                style: completedTextStyle,
+                              )
+                            : Text(
+                                confirmingText,
+                                key: const ValueKey("confirming-text"),
+                                style: confirmingTextStyle,
+                              ),
                   ),
                 ),
               );
