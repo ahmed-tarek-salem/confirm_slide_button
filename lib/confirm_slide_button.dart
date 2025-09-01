@@ -224,7 +224,7 @@ class ConfirmSlideButton extends StatefulWidget {
     this.horizontalPadding = 4.0,
     // Colors & appearance
     this.trackBackgroundColor = const Color(0xff2f2c32),
-    this.progressFillColor = Colors.greenAccent,
+    this.progressFillColor = Colors.green,
     this.thumbBackgroundColor = Colors.black,
     // Animation & effects
     this.enableShimmerAnimation = true,
