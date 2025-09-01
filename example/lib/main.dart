@@ -28,7 +28,7 @@ class _MyAppState extends State<MyApp> {
           backgroundColor: Colors.black,
           body: Center(
               child: Text(
-            isSuccess ? "Success!" : "Wiating for the confirmation...",
+            isSuccess ? "Success!" : "Waiting for the confirmation...",
             style: TextStyle(color: Colors.white),
           )),
           bottomNavigationBar: Column(
